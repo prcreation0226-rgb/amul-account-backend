@@ -1,0 +1,23 @@
+{
+  "invoiceNo": "INV-1782301019494",
+  "customerId": "11",
+  "date": "2026-06-24",
+  "paymentMode": "Cash",
+  "remark": "",
+  "subTotal": 457,
+  "totalDiscount": 0,
+  "freightCharges": 0,
+  "totalAmount": 457,
+  "items": [
+    {
+      "productId": 6,
+      "quantity": 1,
+      "freeQty": 0,
+      "price": 457,
+      "discount1": 0,
+      "discount2": 0,
+      "imei": "",
+      "amount": 457
+    }
+  ]
+}

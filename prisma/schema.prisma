@@ -1,0 +1,1093 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id         Int      @id @default(autoincrement())
+  name       String
+  ownerName  String
+  ownerEmail String   @unique(map: "Company_ownerEmail_key")
+  status     CompanyStatus @default(ACTIVE)
+  planId     Int?
+  plan       SubscriptionPlan? @relation(fields: [planId], references: [id])
+  phone      String?
+  address    String?
+  startDate  DateTime?
+  expireDate DateTime?
+  planType   String?
+  logo       String? @db.LongText
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  users      User[]
+  products   Product[]
+  invoices   Invoice[]
+  customers  Customer[]
+  logs       AuditLog[]
+  banks      Bank[]
+  employees  Employee[]
+  employeeTransactions EmployeeTransaction[]
+  categories Category[]
+  expenses   Expense[]
+  expenseTransactions ExpenseTransaction[]
+  incomes    Income[]
+  incomeTransactions IncomeTransaction[]
+  payments   PaymentBook[]
+  vouchers   Voucher[]
+  boms       Bom[]
+  partyTags  PartyTag[]
+  partySetting PartySetting?
+  warehouses Warehouse[]
+  branches   Branch[]
+  locations  Location[]
+  offers     Offer[]
+  companySetting CompanySetting?
+  units      Unit[]
+  unitConversions UnitConversion[]
+  loadingSheets LoadingSheet[]
+  attendances   Attendance[]
+  productTags   ProductTag[]
+  commissionTypes CommissionType[]
+  bankTransactions BankTransaction[]
+  paymentBookTransactions PaymentBookTransaction[]
+  cashBooks    CashBook[]
+  complaints     Complaint[]
+  serviceReminders ServiceReminder[]
+  messageTemplates MessageTemplate[]
+  bankStatements BankStatement[]
+  bankStatementRecords BankStatementRecord[]
+  stockAdjustmentLogs StockAdjustmentLog[]
+  customerPayments CustomerPayment[]
+
+ @@map("company")
+}
+
+enum CompanyStatus {
+  ACTIVE
+  TRIAL
+  EXPIRED
+  SUSPENDED
+}
+
+model SubscriptionPlan {
+  id        Int       @id @default(autoincrement())
+  name      String
+  price     Float
+  features  Json
+  companies Company[]
+
+ @@map("subscriptionplan")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique(map: "User_email_key")
+  password  String
+  role      UserRole @default(STAFF)
+  companyId Int?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  notificationPermissions Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+ @@map("user")
+}
+
+enum UserRole {
+  SUPERADMIN
+  COMPANY_ADMIN
+  STAFF
+}
+
+model Product {
+  id           Int           @id @default(autoincrement())
+  name         String
+  sku          String
+  barcode      String?
+  mrp          Float         @default(0)
+  price        Float         @default(0)
+  category     String?
+  brand        String?
+  colorVariant String?
+  status          String        @default("Active")
+  stock           Int           @default(0)
+  tax             Float         @default(0)
+  hsnCode         String?
+  purchasePrice   Float         @default(0)
+  wholesalePrice  Float         @default(0)
+  creditSalePrice Float         @default(0)
+  baseUnit        String?
+  purchaseUnit    String?
+  salesUnit       String?
+  lowStockAlert   Int           @default(0)
+  reorderLevel    Int           @default(0)
+  enableBatch     Boolean       @default(false)
+  enableExpiry    Boolean       @default(false)
+  enableImei      Boolean?      @default(false)
+  hasBom          Boolean?      @default(false)
+  qtySlabs        Json?
+  openingStockRate Float?       @default(0)
+  secOpeningQty   Float?        @default(0)
+  asOfDate        String?
+  warehouse       String?
+  bomName         String?
+  isMultiLevel    Boolean?      @default(false)
+  bomRecipe       Json?
+  syncOnline      Boolean?      @default(false)
+  onlineProductName String?
+  onlineProductDesc String?     @db.Text
+  onlineSalePrice Float?        @default(0)
+  ecommerceCategory String?
+  productImage    String?       @db.LongText
+  commissionType  String?
+  size            String?
+  colour          String?
+  expiryMonth     String?
+  location        String?
+  hindiName       String?
+  description     String?       @db.Text
+  termsCondition  String?       @db.Text
+  productTags     String?
+  rawMaterials    Json?
+  extraCharges    Json?
+  subItems        Json?
+  subInventory    Json?
+  companyId       Int
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoiceItems InvoiceItem[]
+  bomItems     BomItem[]
+  attributeValues ProductAttributeValue[]
+  stockAdjustmentLogs StockAdjustmentLog[]
+  warehouseStocks WarehouseStock[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  @@unique([sku, companyId], map: "Product_sku_companyId_key")
+
+@@map("product")
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  address   String?
+  city      String?
+  gstin     String?
+  mobile    String?
+  partyTags String?
+  balance   Float    @default(0)
+  status    String   @default("Active")
+  type      String   @default("CUSTOMER")
+  dueDays       Int?      @default(7)
+  drugLicense   String?
+  pinCode       String?
+  gstApplicable String?
+  state         String?
+  email         String?
+  partyType     String?
+  otherMobileNo String?
+  partyLimit    Float?    @default(0)
+  interestRate  Float?    @default(0)
+  loyaltyPoints Int?      @default(0)
+  joiningDate   String?
+  wholeParty    Boolean?  @default(false)
+  sezParty      Boolean?  @default(false)
+  focParty      Boolean?  @default(false)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices  Invoice[]
+  payments  CustomerPayment[]
+  followups Followup[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+@@map("customer")
+}
+
+model CustomerPayment {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  amount      Float    @default(0)
+  discount    Float    @default(0)
+  paymentType String   @default("IN")  // IN or OUT
+  paymentMode String   @default("Cash")
+  remark      String?
+  customerId  Int
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+@@map("customerpayment")
+}
+
+model Followup {
+  id           Int      @id @default(autoincrement())
+  reason       String   @db.Text
+  reminderDate String
+  customerId   Int
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+@@map("followup")
+}
+
+enum TransactionType {
+  PURCHASE_ORDER
+  PURCHASE
+  PURCHASE_RETURN
+  SALES
+  SALES_RETURN
+  CHALLAN
+  STOCK_TRANSFER
+  QUOTATION
+  ADJUSTMENT
+}
+
+model Invoice {
+  id             Int           @id @default(autoincrement())
+  invoiceNo      String
+  date           DateTime      @default(now())
+  type           TransactionType @default(SALES)
+  subTotal       Float         @default(0)
+  totalDiscount  Float         @default(0)
+  freightCharges Float         @default(0)
+  totalAmount    Float         @default(0)
+  totalGstAmount Float         @default(0)
+  totalCgst      Float         @default(0)
+  totalSgst      Float         @default(0)
+  totalIgst      Float         @default(0)
+  tcsAmount      Float         @default(0)
+  paymentMode    String        @default("Cash")
+  remark         String?
+  status         String        @default("PAID")
+  companyId      Int
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId     Int?
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  warehouseId    Int?
+  toWarehouseId  Int?
+  items          InvoiceItem[]
+  loadingSheetItems LoadingSheetItem[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+@@map("invoice")
+}
+
+model InvoiceItem {
+  id        Int      @id @default(autoincrement())
+  invoiceId Int
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(1)
+  freeQty   Int      @default(0)
+  primaryOpeningQty Float?   @default(0)
+  secOpeningQty     Float?   @default(0)
+  price     Float    @default(0)
+  discount1 Float    @default(0)
+  discount2 Float    @default(0)
+  batchNo   String?
+  mfgDate   String?
+  expDate   String?
+  imei      String?
+  ram       String?
+  storage   String?
+  color     String?
+  amount    Float    @default(0)
+  gstRate   Float    @default(0)
+  gstAmount Float    @default(0)
+  cgst      Float    @default(0)
+  sgst      Float    @default(0)
+  igst      Float    @default(0)
+
+@@map("invoiceitem")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  actionType   String
+  details      String?  @db.Text
+  referenceId  String?
+  userName     String
+  userRole     String   @default("User")
+  billNumber   String?
+  moduleName   String?
+  previousData Json?
+  updatedData  Json?
+  ipAddress    String?
+  companyId    Int
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+@@map("auditlog")
+}
+
+model Bank {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String
+  balance   Float    @default(0)
+  address   String?
+  branch    String?
+  ifsc      String?
+  accountNo String?
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transfersFrom BankTransaction[] @relation("BankTransfersFrom")
+  transfersTo   BankTransaction[] @relation("BankTransfersTo")
+  bankStatements BankStatement[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@map("bank")
+}
+
+model Employee {
+  id                         Int      @id @default(autoincrement())
+  name                       String
+  mobile                     String?
+  city                       String?
+  joiningDate                String?
+  designation                String?
+  salary                     Float    @default(0)
+  paidHoliday                Int      @default(0)
+  commission                 Float    @default(0)
+  specialCommission          Float    @default(0)
+  totalSaleCommission        Float    @default(0)
+  commissionOnManufacturing  Float    @default(0)
+  balance                    Float    @default(0)
+  companyId                  Int
+  company                    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions               EmployeeTransaction[]
+  attendances                Attendance[]
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+@@map("employee")
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  date        DateTime
+  status      String   @default("Present")
+  employeeId  Int
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, date], map: "Attendance_employeeId_date_key")
+
+@@map("attendance")
+}
+
+model Category {
+  id               Int      @id @default(autoincrement())
+  name             String
+  purchaseDiscount Float    @default(0)
+  saleDiscount     Float    @default(0)
+  isActive         Boolean  @default(true)
+  companyId        Int
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attributes       CategoryAttribute[]
+  units            CategoryUnit[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+@@map("category")
+}
+
+model Expense {
+  id        Int      @id @default(autoincrement())
+  name      String
+  head      String
+  type      String
+  isActive  Boolean  @default(true)
+  balance   Float    @default(0)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions ExpenseTransaction[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@map("expense")
+}
+
+model ExpenseTransaction {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @default(now())
+  expenseAmount Float    @default(0)
+  paidAmount    Float    @default(0)
+  discount      Float    @default(0)
+  remark        String?
+  expenseId     Int
+  expense       Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  companyId     Int
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+@@map("expensetransaction")
+}
+
+model Income {
+  id        Int      @id @default(autoincrement())
+  name      String
+  head      String?
+  isActive  Boolean  @default(true)
+  balance   Float    @default(0)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions IncomeTransaction[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@map("income")
+}
+
+model IncomeTransaction {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @default(now())
+  incomeAmount  Float    @default(0)
+  paidAmount    Float    @default(0)
+  discount      Float    @default(0)
+  remark        String?
+  incomeId      Int
+  income        Income   @relation(fields: [incomeId], references: [id], onDelete: Cascade)
+  companyId     Int
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+@@map("incometransaction")
+}
+
+model PaymentBook {
+  id           Int      @id @default(autoincrement())
+  partyName    String
+  mobileNumber String?
+  city         String?
+  isActive     Boolean  @default(true)
+  companyId    Int
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions PaymentBookTransaction[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+@@map("paymentbook")
+}
+
+model Voucher {
+  id        Int      @id @default(autoincrement())
+  voucherId String
+  type      String
+  head      String
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@map("voucher")
+}
+
+model Bom {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items     BomItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@map("bom")
+}
+
+model BomItem {
+  id        Int      @id @default(autoincrement())
+  bomId     Int
+  bom       Bom      @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Float    @default(1)
+  unit      String   @default("Units")
+  salePrice Float    @default(0)
+  mrp       Float    @default(0)
+  wholesale Float    @default(0)
+
+@@map("bomitem")
+}
+
+model PartyTag {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@map("partytag")
+}
+
+model ProductTag {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@map("producttag")
+}
+
+model CommissionType {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+@@map("commissiontype")
+}
+
+model PartySetting {
+  id              Int      @id @default(autoincrement())
+  defaultDueDays  Int      @default(7)
+  showPartyTags   Boolean  @default(true)
+  showDueDate     Boolean  @default(true)
+  extraColumns    Json?
+  companyId       Int      @unique(map: "PartySetting_companyId_key")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+@@map("partysetting")
+}
+
+model EmployeeTransaction {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  amount      Float    @default(0)
+  type        String
+  discount    Float    @default(0)
+  remark      String?
+  balance     Float    @default(0)
+  employeeId  Int
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+@@map("employeetransaction")
+}
+
+model Warehouse {
+  id         Int       @id @default(autoincrement())
+  name       String
+  location   String?
+  isActive   Boolean   @default(true)
+  branchId   Int?
+  branch     Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  locationId Int?
+  locRef     Location? @relation("WarehouseLocation", fields: [locationId], references: [id], onDelete: SetNull)
+  companyId  Int
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  warehouseStocks WarehouseStock[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+@@map("warehouse")
+}
+
+model Branch {
+  id         Int         @id @default(autoincrement())
+  name       String
+  code       String?
+  contact    String?
+  gstin      String?
+  address    String?
+  isActive   Boolean     @default(true)
+  companyId  Int
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  locations  Location[]
+  warehouses Warehouse[]
+
+@@map("branch")
+}
+
+model Location {
+  id         Int         @id @default(autoincrement())
+  name       String
+  code       String?
+  address    String?
+  isActive   Boolean     @default(true)
+  branchId   Int
+  branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  companyId  Int
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  warehouses Warehouse[] @relation("WarehouseLocation")
+
+@@map("location")
+}
+
+model Offer {
+  id              Int      @id @default(autoincrement())
+  name            String
+  offerType       String
+  productSelection String
+  discountType    String?
+  discountValue   String?
+  buyQty          Int?
+  getQty          Int?
+  startDate       String?
+  endDate         String?
+  schedule        String?
+  offerDescription String?   @db.Text
+  status          String   @default("ACTIVE")
+  minCart         String?  @default("-")
+  target          String?
+  type            String?
+  offerValue      String?
+  scheduleIcon    String?
+  usage           Int      @default(0)
+  priority        String?  @default("P3")
+  companyId       Int
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+@@map("offer")
+}
+
+model Unit {
+  id          Int      @id @default(autoincrement())
+  name        String
+  uqc         String
+  value       String?
+  compareTo   String?
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryUnits CategoryUnit[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+@@map("unit")
+}
+
+model UnitConversion {
+  id          Int      @id @default(autoincrement())
+  baseUnit    String
+  baseQty     Float
+  targetUnit  String
+  targetQty   Float
+  isActive    Boolean  @default(true)
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+@@map("unitconversion")
+}
+
+model CompanySetting {
+  id                  Int      @id @default(autoincrement())
+  quickProduct        Boolean  @default(false)
+  partyFirst          Boolean  @default(false)
+  showShippingParty   Boolean  @default(false)
+  showCompany         Boolean  @default(false)
+  showProductCode     Boolean  @default(false)
+  showBatchNo         Boolean  @default(false)
+  compulsoryBatchNo   Boolean  @default(false)
+  showGST             Boolean  @default(false)
+  showHSN             Boolean  @default(false)
+  showMRP             Boolean  @default(false)
+  showListPrice       Boolean  @default(false)
+  showPurchasePrice   Boolean  @default(false)
+  showDiscount        Boolean  @default(false)
+  showDiscount2       Boolean  @default(false)
+  hideTotalDiscount   Boolean  @default(false)
+  hideFreightCharge   Boolean  @default(false)
+  showPriceFirst      Boolean  @default(false)
+  showUnit            Boolean  @default(false)
+  showWarning         Boolean  @default(false)
+  negativeStockLock   Boolean  @default(false)
+  useProductCode      Boolean  @default(false)
+  useBarcode          Boolean  @default(false)
+  usePoints           Boolean  @default(false)
+  
+  whatsapp            Boolean  @default(false)
+  sendWhatsapp        Boolean  @default(false)
+  sendSms             Boolean  @default(false)
+  mergePartyLedger    Boolean  @default(false)
+  partyTypeBoth       Boolean  @default(false)
+  interestOnInvoices  Boolean  @default(false)
+  voucherHead         String?
+  showCustomerChallan Boolean  @default(true)
+  showCustomerInvoice Boolean  @default(false)
+  showPurchaseOrder   Boolean  @default(true)
+  showSalesOrder      Boolean  @default(false)
+  currency            String?
+  whatsappHost        String?
+  
+  lowStockQty         Int      @default(5)
+  languagePreference  String   @default("en")
+  invoiceLayout       String   @default("default")
+  taxDisplayOption    String   @default("EXCLUSIVE")
+  barcodeMode         String   @default("MANUAL")
+  defaultQuantity     Int      @default(1)
+  defaultWarehouseId  Int?
+  defaultTerms        String?  @db.Text
+  remarkSettings      String?  @db.Text
+
+  // Product Master Settings
+  extraColumnsName        String?   @default("")
+  extraColumnsDefault     String?   @default("")
+  defaultCommission       String?   @default("Normal")
+  barcodeHeads            String?   @default("* M")
+  showSubInventory        Boolean   @default(false)
+  showProductCodeField    Boolean   @default(false)
+  showBrandField          Boolean   @default(false)
+  showCategoryField       Boolean   @default(true)
+  showGstApplicableField  Boolean   @default(true)
+  showHsnField            Boolean   @default(true)
+  showCreditSalePrice     Boolean   @default(false)
+  showWholesalePrice      Boolean   @default(false)
+  showSpecialPrice        Boolean   @default(false)
+  showSuperSpecialPrice   Boolean   @default(false)
+  showOpeningStock        Boolean   @default(false)
+  showMinimumQuantity     Boolean   @default(false)
+  showReorderQuantity     Boolean   @default(false)
+  showAutoQuantity        Boolean   @default(false)
+  showMultiLocation       Boolean   @default(false)
+  showUnitSection         Boolean   @default(true)
+  primaryOpeningQty       Boolean   @default(false)
+  pUnit                   Boolean   @default(false)
+  secOpeningQty           Boolean   @default(false)
+  sUnit                   Boolean   @default(false)
+  showBarcodeField        Boolean   @default(true)
+  showPurchasePriceCode   Boolean   @default(true)
+  purchasePriceMarkup     Float     @default(0)
+  purchasePriceCodeMap    String?   @default("OABCDEFGHI")
+
+  // Invoice Creation Settings (Drawer)
+  useStore                 Boolean   @default(false)
+  manualQty                Boolean   @default(false)
+  salePrice                Boolean   @default(false)
+  wholeSalePrice           Boolean   @default(false)
+  qtyWiseRate              Boolean   @default(false)
+  categoryWiseDiscount     Boolean   @default(false)
+  saleByCommission         Boolean   @default(false)
+  manufacture              Boolean   @default(false)
+  singlePaymentMode        Boolean   @default(false)
+  setReminderDate          Boolean   @default(false)
+  autoCreditInvoice        Boolean   @default(false)
+  hideManufactureDate      Boolean   @default(false)
+  hideExpiryDate           Boolean   @default(false)
+  customerWiseRate         Boolean   @default(false)
+  defaultCashPayment       Boolean   @default(false)
+
+  customerWiseRateType     String?   @default("Both")
+  discountType             String?   @default("Both")
+  voucherHeads             String?
+  filterMethod             String?   @default("Default")
+  batchDateInputType       String?   @default("Month")
+  pointsValue              Float     @default(0)
+  invoiceRoundUp           Float     @default(0)
+  tcs                      Float     @default(0)
+  wholeSaleProfit          Float     @default(0)
+  saleProfit               Float     @default(0)
+  roundUpTo                Int       @default(2)
+  defaultUnit              String?   @default("pcs")
+  gstUqc                   String?   @default("PCS-PIECES")
+  defaultProductType       String?   @default("Product")
+
+  // Stock Price Update Drawer
+  showBrandName            Boolean   @default(false)
+  showCategory             Boolean   @default(false)
+  showCashSalePrice        Boolean   @default(false)
+  showBranches             Boolean   @default(false)
+  showStockQty             Boolean   @default(false)
+
+  // Ledger Drawer
+  showDueDays              Boolean   @default(false)
+  showBankDetails          Boolean   @default(false)
+  accountingFormat         Boolean   @default(false)
+  billWisePayment          Boolean   @default(false)
+  paymentReminderEnabled   Boolean   @default(false)
+  
+  // Complain Settings
+  showTechnician           Boolean   @default(true)
+  complainExtraColumn      String?   @db.Text
+  printSettings            Json?
+
+  companyId           Int      @unique(map: "CompanySetting_companyId_key")
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+@@map("companysetting")
+}
+
+model LoadingSheet {
+  id          Int      @id @default(autoincrement())
+  sheetNo     String
+  date        DateTime @default(now())
+  status      String   @default("GENERATED")
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       LoadingSheetItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+@@map("loadingsheet")
+}
+
+model LoadingSheetItem {
+  id              Int      @id @default(autoincrement())
+  loadingSheetId  Int
+  loadingSheet    LoadingSheet @relation(fields: [loadingSheetId], references: [id], onDelete: Cascade)
+  invoiceId       Int
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+@@map("loadingsheetitem")
+}
+
+model Currency {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique(map: "Currency_code_key")
+  symbol      String?
+  name        String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+@@map("currency")
+}
+
+model BankTransaction {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @default(now())
+  amount       Float    @default(0)
+  bankCharges  Float    @default(0)
+  remark       String?
+  fromBankId   Int?
+  toBankId     Int?
+  companyId    Int
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fromBank     Bank?    @relation("BankTransfersFrom", fields: [fromBankId], references: [id], onDelete: Cascade)
+  toBank       Bank?    @relation("BankTransfersTo", fields: [toBankId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+@@map("banktransaction")
+}
+
+model PaymentBookTransaction {
+  id             Int          @id @default(autoincrement())
+  date           DateTime     @default(now())
+  paymentIn      Float        @default(0)
+  paymentOut     Float        @default(0)
+  discount       Float        @default(0)
+  remark         String?
+  paymentBookId  Int
+  paymentBook    PaymentBook  @relation(fields: [paymentBookId], references: [id], onDelete: Cascade)
+  companyId      Int
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+@@map("paymentbooktransaction")
+}
+
+model CashBook {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  voucherNo   String
+  type        String   // "Income" or "Expense"
+  particular  String
+  accountName String
+  paymentType String   @default("Cash")
+  cashIn      Float    @default(0)
+  cashOut     Float    @default(0)
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+@@map("cashbook")
+}
+
+model CategoryAttribute {
+  id         Int      @id @default(autoincrement())
+  name       String
+  type       String
+  options    Json?
+  isRequired Boolean  @default(false)
+  order      Int      @default(0)
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  productValues ProductAttributeValue[]
+
+@@map("categoryattribute")
+}
+
+model CategoryUnit {
+  id         Int      @id @default(autoincrement())
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  unitId     Int
+  unit       Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  
+  @@unique([categoryId, unitId], map: "CategoryUnit_categoryId_unitId_key")
+
+@@map("categoryunit")
+}
+
+model ProductAttributeValue {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeId Int
+  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  value       Json
+  
+  @@unique([productId, attributeId], map: "ProductAttributeValue_productId_attributeId_key")
+
+@@map("productattributevalue")
+}
+
+model Complaint {
+  id              Int      @id @default(autoincrement())
+  complainDate    DateTime @default(now())
+  partyName       String?
+  productName     String?
+  technicianName  String?
+  details         String?  @db.Text
+  serviceAmount   Float    @default(0)
+  remark          String?  @db.Text
+  location        String?
+  status          String   @default("Pending")
+  companyId       Int
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  @@map("complaint")
+}
+
+model ServiceReminder {
+  id              Int      @id @default(autoincrement())
+  partyName       String
+  productName     String?
+  contactPerson   String?
+  mobileNo        String?
+  serviceDate     DateTime
+  note            String?  @db.Text
+  status          String   @default("Pending")
+  companyId       Int
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  @@map("servicereminder")
+}
+
+model MessageTemplate {
+  id              Int      @id @default(autoincrement())
+  type            String   // SMS, WhatsApp, Email
+  name            String
+  content         String   @db.Text
+  isActive        Boolean  @default(true)
+  companyId       Int
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  @@map("messagetemplate")
+}
+
+model BankStatement {
+  id              Int      @id @default(autoincrement())
+  bankId          Int
+  bank            Bank     @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  uploadDate      DateTime @default(now())
+  fileName        String
+  companyId       Int
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  records         BankStatementRecord[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  @@map("bankstatement")
+}
+
+model BankStatementRecord {
+  id              Int      @id @default(autoincrement())
+  statementId     Int
+  statement       BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  date            DateTime
+  description     String   @db.Text
+  refNo           String?
+  debit           Float    @default(0)
+  credit          Float    @default(0)
+  balance         Float    @default(0)
+  companyId       Int
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@map("bankstatementrecord")
+}
+
+model StockAdjustmentLog {
+  id              Int      @id @default(autoincrement())
+  productId       Int
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  oldStock        Int
+  newStock        Int
+  reason          String?  @db.Text
+  date            DateTime @default(now())
+  companyId       Int
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@map("stockadjustmentlog")
+}
+
+model WarehouseStock {
+  id          Int       @id @default(autoincrement())
+  productId   Int
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId Int
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  stock       Int       @default(0)
+  companyId   Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, warehouseId])
+  @@map("warehousestock")
+}

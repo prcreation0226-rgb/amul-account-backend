@@ -1,0 +1,28 @@
+PrismaClientValidationError: 
+Invalid `tx.customer.update()` invocation in
+C:\Users\kiaan\Desktop\os -booking\account backend\src\controllers\inventoryController.js:78:27
+
+  75 // 3. Update financial ledgers (Customer/Party balance)
+  76 if (type.toUpperCase() === 'SALES' && status !== 'PAID') {
+  77   // Increase customer balance (they owe us)
+→ 78   await tx.customer.update({
+         where: {
+           id: "11"
+               ~~~~
+         },
+         data: {
+           balance: {
+             increment: 457
+           }
+         }
+       })
+
+Argument `id`: Invalid value provided. Expected Int, provided String.
+    at wn (C:\Users\kiaan\Desktop\os -booking\account backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (C:\Users\kiaan\Desktop\os -booking\account backend\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (C:\Users\kiaan\Desktop\os -booking\account backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\kiaan\Desktop\os -booking\account backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\kiaan\Desktop\os -booking\account backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async C:\Users\kiaan\Desktop\os -booking\account backend\src\controllers\inventoryController.js:78:9
+    at async Proxy._transactionWithCallback (C:\Users\kiaan\Desktop\os -booking\account backend\node_modules\@prisma\client\runtime\library.js:130:8000)
+    at async exports.createTransaction (C:\Users\kiaan\Desktop\os -booking\account backend\src\controllers\inventoryController.js:38:20)
