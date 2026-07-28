@@ -4,7 +4,6 @@ const morgan = require('morgan');
 
 const app = express();
 
-
 // Middleware
 app.use(cors());
 app.use(express.json());
