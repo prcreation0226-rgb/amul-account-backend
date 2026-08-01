@@ -40,6 +40,25 @@ exports.register = async (req, res) => {
         }
       });
 
+      // Seed default vouchers
+      const defaultVouchers = [
+        { type: 'Company Purchase', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Customer Sale', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Customer Sale Return', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Bank Ledger', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Customer Challan Invoice', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Complain Booking', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Customer Quotation', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Customer Payment', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Stock Adjustment', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Customer Sale Order', voucherId: '1', head: '', companyId: company.id },
+        { type: 'Company Payment', voucherId: '1', head: '', companyId: company.id }
+      ];
+
+      await tx.voucher.createMany({
+        data: defaultVouchers
+      });
+
       return { company, user };
     });
 

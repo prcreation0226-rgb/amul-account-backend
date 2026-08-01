@@ -134,9 +134,21 @@ exports.getBankTransactions = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Bank not found' });
     }
 
+    const { startDate, endDate } = req.query;
+    let dateFilter = {};
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter = { date: { gte: start, lte: end } };
+    }
+
     const transactions = await prisma.bankTransaction.findMany({
       where: {
         companyId,
+        ...dateFilter,
         OR: [
           { fromBankId: bankId },
           { toBankId: bankId }

@@ -155,6 +155,35 @@ exports.checkout = async (req, res) => {
           data: { usage: { increment: 1 } }
         });
       }
+
+      // --- New Logic: Auto-deposit POS Sale into Bank Ledger ---
+      if (invoice.type === 'SALES' && invoice.totalAmount > 0) {
+        const banks = await tx.bank.findMany({ where: { companyId } });
+        if (Array.isArray(paymentModes) && paymentModes.length > 0) {
+           for (const pm of paymentModes) {
+             const amt = parseFloat(pm.amount);
+             if (amt > 0 && pm.mode.toLowerCase() !== 'credit') {
+               const pModeLower = pm.mode.toLowerCase();
+               let targetBank;
+               if (pModeLower === 'cash') {
+                 targetBank = banks.find(b => (b.type || '').toLowerCase().includes('cash') || (b.name || '').toLowerCase().includes('cash'));
+               } else {
+                 targetBank = banks.find(b => (b.name || '').toLowerCase().includes(pModeLower) || pModeLower.includes((b.name || '').toLowerCase()));
+               }
+               if (!targetBank && banks.length > 0) targetBank = banks[0];
+               
+               if (targetBank) {
+                 await tx.bankTransaction.create({
+                   data: { date: invoice.date, toBankId: targetBank.id, amount: amt, remark: `${pm.mode} POS Sale - ${invoice.invoiceNo}`, companyId }
+                 });
+                 await tx.bank.update({ where: { id: targetBank.id }, data: { balance: { increment: amt } } });
+               }
+             }
+           }
+        }
+      }
+      // ---------------------------------------------------------
+
       await tx.auditLog.create({
         data: {
           actionType: 'POS_CHECKOUT',

@@ -63,6 +63,7 @@ model Company {
   bankStatementRecords BankStatementRecord[]
   stockAdjustmentLogs StockAdjustmentLog[]
   customerPayments CustomerPayment[]
+  barcodeTemplates BarcodeTemplate[]
 
  @@map("company")
 }
@@ -269,6 +270,8 @@ model Invoice {
   totalIgst      Float         @default(0)
   tcsAmount      Float         @default(0)
   paymentMode    String        @default("Cash")
+  salesperson    String?
+  commission     Float?        @default(0)
   remark         String?
   status         String        @default("PAID")
   companyId      Int
@@ -1090,4 +1093,73 @@ model WarehouseStock {
 
   @@unique([productId, warehouseId])
   @@map("warehousestock")
+}
+
+model BarcodeTemplate {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  companyId          Int
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Page Settings
+  pageWidth          String   @default("50mm")
+  pageHeight         String   @default("25mm")
+  labelsInRow        String   @default("2")
+  pageBreak          String   @default("YES")
+  leftMargin         String   @default("0.5")
+  rightMargin        String   @default("0.5")
+  labelGap           String   @default("1mm")
+  heightGap          String   @default("1mm")
+
+  // Barcode Toggles
+  grnNumber          Boolean  @default(false)
+  zeroPrice          Boolean  @default(false)
+  showBrand          Boolean  @default(false)
+  showMRP            Boolean  @default(true)
+  showAdditionalInfo Boolean  @default(false)
+  showSalePrice      Boolean  @default(true)
+  showWholeSalePrice Boolean  @default(false)
+  doubleMRP          Boolean  @default(false)
+  crossMRP           Boolean  @default(false)
+  showBorder         Boolean  @default(true)
+  showCategory       Boolean  @default(false)
+  showAutoQuantity   Boolean  @default(false)
+  showLocation       Boolean  @default(false)
+  showUnit           Boolean  @default(true)
+  showMultiLine      Boolean  @default(false)
+  showSpecialCommission Boolean @default(false)
+  showHeading        Boolean  @default(true)
+  hideBarcode        Boolean  @default(false)
+  showDiscount       Boolean  @default(false)
+
+  // Fonts and Other Settings
+  barcodeHeading     String?  @default("")
+  headingFontSize    String?  @default("15px")
+  productFontSize    String?  @default("20px")
+  footerFontSize     String?  @default("10px")
+  salePriceFontSize  String?  @default("50px")
+  mrpFontSize        String?  @default("12px")
+  discountFontSize   String?  @default("10px")
+  
+  barcodeWidth       String?  @default("0")
+  barcodeHeight      String?  @default("0")
+
+  // Label Margin Setup
+  marginTop          String?  @default("0mm")
+  marginBottom       String?  @default("0mm")
+  marginLeft         String?  @default("0mm")
+  marginRight        String?  @default("0mm")
+
+  // Other Dropdowns
+  registerOfficeAddress String? @default("Hint - Multiple Address Lines")
+  terms              String?  @default("Add Terms")
+  barcodeFormat      String?  @default("Format 4")
+
+  // Designer Elements
+  elements           Json?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("barcodetemplate")
 }

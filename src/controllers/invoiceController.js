@@ -29,7 +29,9 @@ exports.createInvoice = async (req, res) => {
     totalDiscount, freightCharges, totalAmount, 
     totalGstAmount, totalCgst, totalSgst, totalIgst,
     tcsAmount,
-    items 
+    items,
+    salesperson,
+    commission
   } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -112,6 +114,8 @@ exports.createInvoice = async (req, res) => {
           totalIgst: parseFloat(totalIgst) || 0,
           tcsAmount: parseFloat(tcsAmount) || 0,
           paymentMode: paymentMode || 'Cash',
+          salesperson: salesperson || null,
+          commission: parseFloat(commission) || 0,
           remark: remark || '',
           companyId,
           customerId: parseInt(customerId, 10),
@@ -139,6 +143,36 @@ exports.createInvoice = async (req, res) => {
           items: true
         }
       });
+
+      // --- New Logic: Auto-deposit Sale into Bank Ledger ---
+      if (invoice.type === 'SALES' && invoice.paymentMode.toLowerCase() !== 'credit' && invoice.totalAmount > 0) {
+        const banks = await tx.bank.findMany({ where: { companyId } });
+        const pModeLower = invoice.paymentMode.toLowerCase();
+        let targetBank;
+        if (pModeLower === 'cash') {
+          targetBank = banks.find(b => (b.type || '').toLowerCase().includes('cash') || (b.name || '').toLowerCase().includes('cash'));
+        } else {
+          targetBank = banks.find(b => (b.name || '').toLowerCase().includes(pModeLower) || pModeLower.includes((b.name || '').toLowerCase()));
+        }
+        if (!targetBank && banks.length > 0) targetBank = banks[0];
+        
+        if (targetBank) {
+          await tx.bankTransaction.create({
+            data: {
+              date: invoice.date,
+              toBankId: targetBank.id,
+              amount: invoice.totalAmount,
+              remark: `${invoice.paymentMode} Sale - ${invoice.invoiceNo}`,
+              companyId
+            }
+          });
+          await tx.bank.update({
+            where: { id: targetBank.id },
+            data: { balance: { increment: invoice.totalAmount } }
+          });
+        }
+      }
+      // -------------------------------------------------------------
 
       await tx.auditLog.create({
         data: {

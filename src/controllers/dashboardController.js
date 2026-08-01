@@ -83,23 +83,60 @@ exports.getMetrics = async (req, res) => {
     });
     const allAccountsBalance = bankAgg._sum.balance || 0;
 
-    // --- Chart Data (Last 30 Days Sales) ---
+    // --- Chart Data (30 Days & 12 Months Sales) ---
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const salesInvoices = await prisma.invoice.findMany({
-      where: { companyId, type: 'SALES', date: { gte: thirtyDaysAgo } },
-      select: { date: true, totalAmount: true }
-    });
+    
+    const oneYearAgo = new Date();
+    oneYearAgo.setMonth(oneYearAgo.getMonth() - 11);
+    oneYearAgo.setDate(1);
+    oneYearAgo.setHours(0, 0, 0, 0);
+
+    const [salesInvoices30Days, salesInvoicesYear] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { companyId, type: 'SALES', date: { gte: thirtyDaysAgo } },
+        select: { date: true, totalAmount: true }
+      }),
+      prisma.invoice.findMany({
+        where: { companyId, type: 'SALES', date: { gte: oneYearAgo } },
+        select: { date: true, totalAmount: true }
+      })
+    ]);
+
     const salesByDate = {};
-    salesInvoices.forEach(inv => {
+    salesInvoices30Days.forEach(inv => {
       const d = new Date(inv.date);
       const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-');
       salesByDate[dateStr] = (salesByDate[dateStr] || 0) + inv.totalAmount;
     });
+
     const chartData = Object.keys(salesByDate).map(date => ({
       name: date,
       sales: salesByDate[date]
     })).sort((a, b) => new Date(a.name) - new Date(b.name));
+
+    // 12 Months aggregated data
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlySalesMap = {};
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(oneYearAgo);
+      d.setMonth(d.getMonth() + i);
+      const key = monthNames[d.getMonth()];
+      monthlySalesMap[key] = 0;
+    }
+
+    salesInvoicesYear.forEach(inv => {
+      const d = new Date(inv.date);
+      const key = monthNames[d.getMonth()];
+      if (monthlySalesMap[key] !== undefined) {
+        monthlySalesMap[key] += inv.totalAmount;
+      }
+    });
+
+    const chartData12Months = Object.keys(monthlySalesMap).map(key => ({
+      name: key,
+      sales: monthlySalesMap[key]
+    }));
 
     // --- Alert Cards Data ---
     const allProductsList = await prisma.product.findMany({ 
@@ -154,6 +191,7 @@ exports.getMetrics = async (req, res) => {
         allAccountsBalance,
         recycleBin: 0,
         chartData,
+        chartData12Months,
         alerts: {
           expiredCount,
           reorderCount,

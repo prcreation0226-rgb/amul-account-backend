@@ -14,7 +14,49 @@ exports.getComplaints = async (req, res) => {
     }
 
     if (dateFilter) {
-      // Basic date filtering logic could go here
+      const now = new Date();
+      let startDate, endDate;
+      
+      if (dateFilter === 'Today') {
+        startDate = new Date(new Date().setHours(0, 0, 0, 0));
+        endDate = new Date(new Date().setHours(23, 59, 59, 999));
+      } else if (dateFilter === 'Yesterday') {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        startDate = new Date(yesterday.setHours(0, 0, 0, 0));
+        endDate = new Date(yesterday.setHours(23, 59, 59, 999));
+      } else if (dateFilter === 'Last 7 Days') {
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(new Date().setHours(23, 59, 59, 999));
+      } else if (dateFilter === 'Last 30 Days') {
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(new Date().setHours(23, 59, 59, 999));
+      } else if (dateFilter === 'This Month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      } else if (dateFilter === 'Last Month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      } else if (dateFilter === 'Custom Range') {
+        const { fromDate, toDate } = req.query;
+        if (fromDate && toDate) {
+          startDate = new Date(fromDate);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(toDate);
+          endDate.setHours(23, 59, 59, 999);
+        }
+      }
+
+      if (startDate && endDate) {
+        whereClause.complainDate = {
+          gte: startDate,
+          lte: endDate
+        };
+      }
     }
 
     const complaints = await prisma.complaint.findMany({

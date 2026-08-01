@@ -56,6 +56,7 @@ const bankStatementRoutes = require('./routes/bankStatementRoutes.js');
 const recycleBinRoutes = require('./routes/recycleBinRoutes.js');
 const publicRoutes = require('./routes/publicRoutes.js');
 const importRoutes = require('./routes/importRoutes.js');
+const barcodeSettingRoutes = require('./routes/barcodeSettingRoutes.js');
 
 // Public routes (no auth required) — register BEFORE authenticated routes
 app.use('/api/v1/public', publicRoutes);
@@ -101,6 +102,7 @@ app.use('/api/v1/message-templates', messageTemplateRoutes);
 app.use('/api/v1/bank-statements', bankStatementRoutes);
 app.use('/api/v1/recycle-bin', recycleBinRoutes);
 app.use('/api/v1/import', importRoutes);
+app.use('/api/v1/barcode-settings', barcodeSettingRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

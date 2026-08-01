@@ -143,6 +143,7 @@ exports.createTransaction = async (req, res) => {
 // Get all transactions of a specific type
 exports.getTransactions = async (req, res) => {
   const { type } = req.params;
+  const { startDate, endDate, customerId } = req.query;
   const companyId = req.user.companyId;
 
   if (!isValidTransactionType(type)) {
@@ -150,11 +151,27 @@ exports.getTransactions = async (req, res) => {
   }
 
   try {
+    const whereClause = { 
+      companyId,
+      type: type.toUpperCase()
+    };
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      whereClause.date = {
+        gte: start,
+        lte: end
+      };
+    }
+
+    if (customerId && customerId !== 'all') {
+      whereClause.customerId = parseInt(customerId, 10);
+    }
+
     const invoices = await prisma.invoice.findMany({
-      where: { 
-        companyId,
-        type: type.toUpperCase()
-      },
+      where: whereClause,
       include: {
         customer: true,
         items: {
@@ -167,5 +184,103 @@ exports.getTransactions = async (req, res) => {
     res.status(200).json({ data: invoices });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch transactions" });
+  }
+};
+
+// Get a single transaction by ID
+exports.getTransactionById = async (req, res) => {
+  const { id } = req.params;
+  const companyId = req.user.companyId;
+
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: parseInt(id, 10),
+        companyId
+      },
+      include: {
+        customer: true,
+        items: {
+          include: { product: true }
+        }
+      }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+
+    res.status(200).json({ success: true, data: invoice });
+  } catch (error) {
+    console.error("Error fetching invoice by id:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch invoice details" });
+  }
+};
+
+// Delete a transaction (Invoice)
+exports.deleteTransaction = async (req, res) => {
+  const { id } = req.params;
+  const companyId = req.user.companyId;
+
+  try {
+    // Prisma will cascade delete InvoiceItems automatically
+    await prisma.invoice.delete({
+      where: {
+        id: parseInt(id, 10),
+        companyId // ensure they only delete their own invoice
+      }
+    });
+
+    res.status(200).json({ success: true, message: "Invoice deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting invoice:", error);
+    res.status(500).json({ success: false, error: "Failed to delete invoice" });
+  }
+};
+
+// Fetch all batches for a specific product
+exports.getBatchesByProductId = async (req, res) => {
+  const { productId } = req.params;
+  const companyId = req.user.companyId;
+  
+  try {
+    const pId = parseInt(productId, 10);
+    // Find all invoice items for this product that have a batchNo
+    const items = await prisma.invoiceItem.findMany({
+      where: {
+        productId: pId,
+        invoice: {
+          companyId: companyId
+        },
+        batchNo: {
+          not: null,
+          not: ""
+        }
+      },
+      select: {
+        batchNo: true,
+        mfgDate: true,
+        expDate: true
+      },
+      orderBy: {
+        id: 'desc'
+      }
+    });
+
+    // Extract unique batches with their most recent dates
+    const uniqueBatches = [];
+    const seenBatches = new Set();
+    
+    for (const item of items) {
+      if (!seenBatches.has(item.batchNo)) {
+        seenBatches.add(item.batchNo);
+        uniqueBatches.push(item);
+      }
+    }
+
+    res.status(200).json({ success: true, data: uniqueBatches });
+  } catch (error) {
+    console.error("Error fetching batches:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch batches" });
   }
 };
