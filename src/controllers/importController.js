@@ -73,6 +73,13 @@ function parseCSV(csvText) {
   return results;
 }
 
+const parsePrice = (value) => {
+  if (value === undefined || value === null) return 0;
+  const cleanVal = String(value).replace(/[^0-9.]/g, '');
+  const parsed = parseFloat(cleanVal);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
 exports.handleGeneralImport = async (req, res) => {
   try {
     const companyId = req.user.companyId;
@@ -126,14 +133,29 @@ exports.handleGeneralImport = async (req, res) => {
       }
 
       if (selectedTypes.includes('Product Master')) {
-         const productsToInsert = results.filter(r => (r.name || r.Name) && (r.sku || r.SKU)).map(r => ({
-           name: r.name || r.Name,
-           sku: r.sku || r.SKU,
-           price: parseFloat(r.price || r.Price || 0),
-           stock: parseInt(r.stock || r.Stock || 0),
-           companyId
-         }));
-
+         const productsToInsert = results.filter(r => (r["Item Name"] || r.name || r.Name) && (r.SKU || r.sku || r.SKU)).map(r => {
+           const variantsVal = String(r["Variants/IMEI"] || "").trim();
+           const enableImei = variantsVal !== "" && variantsVal !== "-";
+ 
+           const isBomVal = String(r["Is BOM"] || "").trim().toLowerCase();
+           const hasBom = isBomVal === "yes" || isBomVal === "true";
+ 
+           return {
+             name: r["Item Name"] || r.name || r.Name,
+             sku: String(r.SKU || r.sku || ""),
+             barcode: r.Barcode || r.barcode ? String(r.Barcode || r.barcode) : null,
+             category: r.Category || r.category || null,
+             brand: r.Brand || r.brand || null,
+             mrp: parsePrice(r.MRP || r.mrp),
+             price: parsePrice(r["Sale Price"] || r.price),
+             purchasePrice: parsePrice(r["Purchase Price"] || r.purchasePrice),
+             stock: parseInt(String(r.Stock || r.stock || 0).replace(/[^0-9]/g, '')) || 0,
+             enableImei: enableImei,
+             hasBom: hasBom,
+             companyId
+           };
+         });
+ 
          if (productsToInsert.length > 0) {
            const res = await prisma.product.createMany({
              data: productsToInsert,
