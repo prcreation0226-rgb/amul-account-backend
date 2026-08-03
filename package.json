@@ -21,7 +21,8 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
-    "pdfkit": "^0.19.1"
+    "pdfkit": "^0.19.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "prisma": "^5.22.0"

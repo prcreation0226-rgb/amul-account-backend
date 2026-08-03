@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const XLSX = require('xlsx');
 
 function parseCSV(csvText) {
   const lines = [];
@@ -93,8 +94,18 @@ exports.handleGeneralImport = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please select at least one import type.' });
     }
 
-    const csvText = req.file.buffer.toString('utf-8');
-    const results = parseCSV(csvText);
+    let results = [];
+    const fileExtension = req.file.originalname ? req.file.originalname.split('.').pop().toLowerCase() : '';
+
+    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      results = XLSX.utils.sheet_to_json(sheet);
+    } else {
+      const csvText = req.file.buffer.toString('utf-8');
+      results = parseCSV(csvText);
+    }
     let importedCount = 0;
 
     try {
