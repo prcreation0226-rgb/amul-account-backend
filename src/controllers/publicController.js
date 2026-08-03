@@ -59,3 +59,20 @@ exports.getPublicBill = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+
+// Public: Get all subscription plans
+exports.getPublicPlans = async (req, res) => {
+  try {
+    const plans = await prisma.subscriptionPlan.findMany({
+      include: {
+        _count: {
+          select: { companies: true }
+        }
+      }
+    });
+    res.status(200).json({ success: true, data: plans });
+  } catch (error) {
+    console.error('getPublicPlans error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};

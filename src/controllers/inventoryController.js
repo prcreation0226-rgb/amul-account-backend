@@ -238,6 +238,32 @@ exports.deleteTransaction = async (req, res) => {
   }
 };
 
+// Update a single transaction's status
+exports.updateTransactionStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const companyId = req.user.companyId;
+
+  if (!status) {
+    return res.status(400).json({ error: "Status is required" });
+  }
+
+  try {
+    const updatedInvoice = await prisma.invoice.update({
+      where: {
+        id: parseInt(id, 10),
+        companyId
+      },
+      data: { status }
+    });
+
+    res.status(200).json({ success: true, data: updatedInvoice });
+  } catch (error) {
+    console.error("Error updating transaction status:", error);
+    res.status(500).json({ success: false, error: "Failed to update transaction status" });
+  }
+};
+
 // Fetch all batches for a specific product
 exports.getBatchesByProductId = async (req, res) => {
   const { productId } = req.params;

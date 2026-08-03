@@ -13,5 +13,6 @@ router.get('/batches/:productId', inventoryController.getBatchesByProductId);
 router.post('/:type', inventoryController.createTransaction);
 router.get('/:type', inventoryController.getTransactions);
 router.delete('/:id', inventoryController.deleteTransaction);
+router.patch('/:id/status', inventoryController.updateTransactionStatus);
 
 module.exports = router;

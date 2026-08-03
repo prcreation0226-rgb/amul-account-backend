@@ -83,7 +83,7 @@ const parsePrice = (value) => {
 exports.handleGeneralImport = async (req, res) => {
   try {
     const companyId = req.user.companyId;
-    
+
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded or file exceeds 5MB limit.' });
     }
@@ -92,11 +92,11 @@ exports.handleGeneralImport = async (req, res) => {
     if (typeof selectedTypes === 'string') {
       try {
         selectedTypes = JSON.parse(selectedTypes);
-      } catch(e) {
+      } catch (e) {
         selectedTypes = selectedTypes.split(',');
       }
     }
-    
+
     if (!selectedTypes || selectedTypes.length === 0) {
       return res.status(400).json({ success: false, message: 'Please select at least one import type.' });
     }
@@ -117,52 +117,77 @@ exports.handleGeneralImport = async (req, res) => {
 
     try {
       if (selectedTypes.includes('Master')) {
-         const customersToInsert = results.filter(r => r.name || r.Name).map(r => ({
-           name: r.name || r.Name,
-           phone: r.phone || r.Phone || null,
-           companyId
-         }));
-         
-         if (customersToInsert.length > 0) {
-           const res = await prisma.customer.createMany({
-             data: customersToInsert,
-             skipDuplicates: true
-           });
-           importedCount += res.count;
-         }
+        const customersToInsert = results.filter(r => r.name || r.Name).map(r => ({
+          name: r.name || r.Name,
+          phone: r.phone || r.Phone || null,
+          companyId
+        }));
+
+        if (customersToInsert.length > 0) {
+          for (const customerData of customersToInsert) {
+            const existing = await prisma.customer.findFirst({
+              where: {
+                name: customerData.name,
+                companyId: customerData.companyId
+              }
+            });
+            
+            if (existing) {
+              await prisma.customer.update({
+                where: { id: existing.id },
+                data: customerData
+              });
+            } else {
+              await prisma.customer.create({
+                data: customerData
+              });
+            }
+          }
+          importedCount += customersToInsert.length;
+        }
       }
 
       if (selectedTypes.includes('Product Master')) {
-         const productsToInsert = results.filter(r => (r["Item Name"] || r.name || r.Name) && (r.SKU || r.sku || r.SKU)).map(r => {
-           const variantsVal = String(r["Variants/IMEI"] || "").trim();
-           const enableImei = variantsVal !== "" && variantsVal !== "-";
- 
-           const isBomVal = String(r["Is BOM"] || "").trim().toLowerCase();
-           const hasBom = isBomVal === "yes" || isBomVal === "true";
- 
-           return {
-             name: r["Item Name"] || r.name || r.Name,
-             sku: String(r.SKU || r.sku || ""),
-             barcode: r.Barcode || r.barcode ? String(r.Barcode || r.barcode) : null,
-             category: r.Category || r.category || null,
-             brand: r.Brand || r.brand || null,
-             mrp: parsePrice(r.MRP || r.mrp),
-             price: parsePrice(r["Sale Price"] || r.price),
-             purchasePrice: parsePrice(r["Purchase Price"] || r.purchasePrice),
-             stock: parseInt(String(r.Stock || r.stock || 0).replace(/[^0-9]/g, '')) || 0,
-             enableImei: enableImei,
-             hasBom: hasBom,
-             companyId
-           };
-         });
- 
-         if (productsToInsert.length > 0) {
-           const res = await prisma.product.createMany({
-             data: productsToInsert,
-             skipDuplicates: true
-           });
-           importedCount += res.count;
-         }
+        const productsToInsert = results.filter(r => (r["Item Name"] || r.name || r.Name) && (r.SKU || r.sku || r.SKU)).map(r => {
+          const variantsVal = String(r["Variants/IMEI"] || "").trim();
+          const enableImei = variantsVal !== "" && variantsVal !== "-";
+
+          const isBomVal = String(r["Is BOM"] || "").trim().toLowerCase();
+          const hasBom = isBomVal === "yes" || isBomVal === "true";
+
+          return {
+            name: r["Item Name"] || r.name || r.Name,
+            sku: String(r.SKU || r.sku || ""),
+            barcode: r.Barcode || r.barcode ? String(r.Barcode || r.barcode) : null,
+            category: r.Category || r.category || null,
+            brand: r.Brand || r.brand || null,
+            mrp: parsePrice(r.MRP || r.mrp),
+            price: parsePrice(r["Sale Price"] || r.price),
+            purchasePrice: parsePrice(r["Purchase Price"] || r.purchasePrice),
+            stock: parseInt(String(r.Stock || r.stock || 0).replace(/[^0-9]/g, '')) || 0,
+            enableImei: enableImei,
+            hasBom: hasBom,
+            companyId
+          };
+        });
+
+        if (productsToInsert.length > 0) {
+          await prisma.$transaction(
+            productsToInsert.map(productData => 
+              prisma.product.upsert({
+                where: {
+                  sku_companyId: {
+                    sku: productData.sku,
+                    companyId: productData.companyId
+                  }
+                },
+                update: productData,
+                create: productData
+              })
+            )
+          );
+          importedCount += productsToInsert.length;
+        }
       }
 
       res.json({
