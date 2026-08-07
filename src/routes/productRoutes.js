@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getProducts, createProduct, updateProduct, deleteProduct, mergeProducts, getExpiryReport, getOrderList, getStockInventory, bulkUpdateHsnGst, stockCorrection, bulkUpdatePrices, getItemQuantityReport } = require('../controllers/productController');
+const { getProducts, createProduct, updateProduct, deleteProduct, mergeProducts, getExpiryReport, getOrderList, getStockInventory, bulkUpdateHsnGst, stockCorrection, bulkUpdatePrices, getItemQuantityReport, getAveragePurchasePrice } = require('../controllers/productController');
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
 router.use(verifyToken);
@@ -16,6 +16,7 @@ router.post('/bulk-prices', requireRole(['COMPANY_ADMIN', 'SUPERADMIN']), bulkUp
 
 router.get('/', getProducts);
 router.get('/:id/quantity-report', getItemQuantityReport);
+router.get('/:id/average-price', getAveragePurchasePrice);
 router.post('/', requireRole(['COMPANY_ADMIN', 'SUPERADMIN']), createProduct);
 router.put('/:id', requireRole(['COMPANY_ADMIN', 'SUPERADMIN']), updateProduct);
 router.delete('/:id', requireRole(['COMPANY_ADMIN', 'SUPERADMIN']), deleteProduct);

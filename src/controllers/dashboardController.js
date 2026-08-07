@@ -35,7 +35,7 @@ exports.getMetrics = async (req, res) => {
 
     const totalCustomers = await prisma.customer.count({ where: { companyId } });
     const totalProducts = await prisma.product.count({ where: { companyId } });
-    const totalInvoicesCount = await prisma.invoice.count({ where: { companyId } });
+    const totalInvoicesCount = await prisma.invoice.count({ where: { companyId, deletedAt: null } });
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -45,23 +45,23 @@ exports.getMetrics = async (req, res) => {
     // Sales
     const salesAgg = await prisma.invoice.aggregate({
       _sum: { totalAmount: true },
-      where: { companyId, type: 'SALES', date: { gte: today, lt: tomorrow } }
+      where: { companyId, type: 'SALES', deletedAt: null, date: { gte: today, lt: tomorrow } }
     });
     const todaysSale = salesAgg._sum.totalAmount || 0;
 
     // Purchase
     const purchaseAgg = await prisma.invoice.aggregate({
       _sum: { totalAmount: true },
-      where: { companyId, type: 'PURCHASE', date: { gte: today, lt: tomorrow } }
+      where: { companyId, type: 'PURCHASE', deletedAt: null, date: { gte: today, lt: tomorrow } }
     });
     const todayPurchase = purchaseAgg._sum.totalAmount || 0;
 
-    // Stock
-    const stockAgg = await prisma.product.aggregate({
-      _sum: { stock: true },
-      where: { companyId }
+    // Stock Value
+    const allProductsValue = await prisma.product.findMany({
+      where: { companyId, deletedAt: null },
+      select: { stock: true, price: true }
     });
-    const currentStockStatus = stockAgg._sum.stock || 0;
+    const currentStockStatus = allProductsValue.reduce((sum, p) => sum + ((p.stock || 0) * (p.price || 0)), 0);
 
     // Outstanding
     const custOutAgg = await prisma.customer.aggregate({
@@ -94,11 +94,11 @@ exports.getMetrics = async (req, res) => {
 
     const [salesInvoices30Days, salesInvoicesYear] = await Promise.all([
       prisma.invoice.findMany({
-        where: { companyId, type: 'SALES', date: { gte: thirtyDaysAgo } },
+        where: { companyId, type: 'SALES', deletedAt: null, date: { gte: thirtyDaysAgo } },
         select: { date: true, totalAmount: true }
       }),
       prisma.invoice.findMany({
-        where: { companyId, type: 'SALES', date: { gte: oneYearAgo } },
+        where: { companyId, type: 'SALES', deletedAt: null, date: { gte: oneYearAgo } },
         select: { date: true, totalAmount: true }
       })
     ]);
@@ -157,23 +157,27 @@ exports.getMetrics = async (req, res) => {
     });
 
     const dueInvoicesCount = await prisma.invoice.count({
-      where: { companyId, status: 'DUE' }
+      where: { companyId, status: 'DUE', deletedAt: null }
     });
 
     const remindersCount = followupsCount + dueInvoicesCount;
 
     const todayCashSales = await prisma.invoice.aggregate({
       _sum: { totalAmount: true },
-      where: { companyId, type: 'SALES', paymentMode: 'Cash', date: { gte: today, lt: tomorrow } }
+      where: { companyId, type: 'SALES', paymentMode: 'Cash', deletedAt: null, date: { gte: today, lt: tomorrow } }
     });
     const todayCashPurchases = await prisma.invoice.aggregate({
       _sum: { totalAmount: true },
-      where: { companyId, type: 'PURCHASE', paymentMode: 'Cash', date: { gte: today, lt: tomorrow } }
+      where: { companyId, type: 'PURCHASE', paymentMode: 'Cash', deletedAt: null, date: { gte: today, lt: tomorrow } }
     });
     const cashIn = todayCashSales._sum.totalAmount || 0;
     const cashOut = todayCashPurchases._sum.totalAmount || 0;
     const txnsCount = await prisma.invoice.count({
-      where: { companyId, date: { gte: today, lt: tomorrow } }
+      where: { companyId, deletedAt: null, date: { gte: today, lt: tomorrow } }
+    });
+
+    const recycleBinCount = await prisma.invoice.count({
+      where: { companyId, deletedAt: { not: null } }
     });
 
     res.status(200).json({
@@ -189,7 +193,7 @@ exports.getMetrics = async (req, res) => {
         customerOutstanding,
         companyOutstanding,
         allAccountsBalance,
-        recycleBin: 0,
+        recycleBin: recycleBinCount,
         chartData,
         chartData12Months,
         alerts: {

@@ -110,30 +110,26 @@ exports.resetDatabase = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       await tx.invoiceItem.deleteMany({ where: { invoice: { companyId } } });
       await tx.invoice.deleteMany({ where: { companyId } });
-      await tx.voucherItem.deleteMany({ where: { voucher: { companyId } } });
       await tx.voucher.deleteMany({ where: { companyId } });
-      await tx.saleOrder.deleteMany({ where: { companyId } });
-      await tx.purchaseOrder.deleteMany({ where: { companyId } });
-      await tx.deliveryChallan.deleteMany({ where: { companyId } });
-      await tx.return.deleteMany({ where: { companyId } });
-      await tx.stockTransfer.deleteMany({ where: { companyId } });
-      await tx.stockAdjustment.deleteMany({ where: { companyId } });
+      await tx.customerPayment.deleteMany({ where: { companyId } });
+      await tx.expenseTransaction.deleteMany({ where: { companyId } });
       await tx.expense.deleteMany({ where: { companyId } });
-      await tx.billItem.deleteMany({ where: { bill: { companyId } } });
-      await tx.bill.deleteMany({ where: { companyId } });
-      await tx.paymentOut.deleteMany({ where: { companyId } });
-      await tx.paymentIn.deleteMany({ where: { companyId } });
-      await tx.cheque.deleteMany({ where: { companyId } });
+      await tx.incomeTransaction.deleteMany({ where: { companyId } });
+      await tx.income.deleteMany({ where: { companyId } });
+      await tx.paymentBookTransaction.deleteMany({ where: { companyId } });
+      await tx.bankTransaction.deleteMany({ where: { companyId } });
+      await tx.cashBook.deleteMany({ where: { companyId } });
       await tx.employeeTransaction.deleteMany({ where: { companyId } });
+      await tx.stockAdjustmentLog.deleteMany({ where: { companyId } });
 
       // If deleteMasterData is true
       if (deleteMasterData) {
         await tx.product.deleteMany({ where: { companyId } });
         await tx.customer.deleteMany({ where: { companyId } });
-        await tx.vendor.deleteMany({ where: { companyId } });
         await tx.employee.deleteMany({ where: { companyId } });
-        await tx.bankAccount.deleteMany({ where: { companyId } });
-        await tx.store.deleteMany({ where: { companyId } });
+        await tx.bank.deleteMany({ where: { companyId } });
+        await tx.paymentBook.deleteMany({ where: { companyId } });
+        await tx.warehouse.deleteMany({ where: { companyId } });
       }
     });
 

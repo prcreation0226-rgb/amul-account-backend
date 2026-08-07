@@ -145,31 +145,55 @@ exports.createInvoice = async (req, res) => {
       });
 
       // --- New Logic: Auto-deposit Sale into Bank Ledger ---
-      if (invoice.type === 'SALES' && invoice.paymentMode.toLowerCase() !== 'credit' && invoice.totalAmount > 0) {
-        const banks = await tx.bank.findMany({ where: { companyId } });
-        const pModeLower = invoice.paymentMode.toLowerCase();
-        let targetBank;
-        if (pModeLower === 'cash') {
-          targetBank = banks.find(b => (b.type || '').toLowerCase().includes('cash') || (b.name || '').toLowerCase().includes('cash'));
-        } else {
-          targetBank = banks.find(b => (b.name || '').toLowerCase().includes(pModeLower) || pModeLower.includes((b.name || '').toLowerCase()));
-        }
-        if (!targetBank && banks.length > 0) targetBank = banks[0];
+      if (invoice.type === 'SALES' && invoice.totalAmount > 0) {
+        const paymentDetails = req.body.paymentDetails || [];
         
-        if (targetBank) {
-          await tx.bankTransaction.create({
-            data: {
-              date: invoice.date,
-              toBankId: targetBank.id,
-              amount: invoice.totalAmount,
-              remark: `${invoice.paymentMode} Sale - ${invoice.invoiceNo}`,
-              companyId
+        if (paymentDetails.length > 0) {
+          for (const pd of paymentDetails) {
+            const amt = parseFloat(pd.amount) || 0;
+            const bId = parseInt(pd.bankId, 10);
+            if (amt > 0 && bId && bId !== 9999) {
+              await tx.bankTransaction.create({
+                data: {
+                  date: invoice.date,
+                  toBankId: bId,
+                  amount: amt,
+                  remark: `${invoice.paymentMode} Sale - ${invoice.invoiceNo}`,
+                  companyId
+                }
+              });
+              await tx.bank.update({
+                where: { id: bId },
+                data: { balance: { increment: amt } }
+              });
             }
-          });
-          await tx.bank.update({
-            where: { id: targetBank.id },
-            data: { balance: { increment: invoice.totalAmount } }
-          });
+          }
+        } else {
+          const banks = await tx.bank.findMany({ where: { companyId } });
+          const pModeLower = invoice.paymentMode.toLowerCase();
+          let targetBank;
+          if (pModeLower === 'cash') {
+            targetBank = banks.find(b => (b.type || '').toLowerCase().includes('cash') || (b.name || '').toLowerCase().includes('cash'));
+          } else {
+            targetBank = banks.find(b => (b.name || '').toLowerCase().includes(pModeLower) || pModeLower.includes((b.name || '').toLowerCase()));
+          }
+          if (!targetBank && banks.length > 0) targetBank = banks[0];
+          
+          if (targetBank) {
+            await tx.bankTransaction.create({
+              data: {
+                date: invoice.date,
+                toBankId: targetBank.id,
+                amount: invoice.totalAmount,
+                remark: `${invoice.paymentMode} Sale - ${invoice.invoiceNo}`,
+                companyId
+              }
+            });
+            await tx.bank.update({
+              where: { id: targetBank.id },
+              data: { balance: { increment: invoice.totalAmount } }
+            });
+          }
         }
       }
       // -------------------------------------------------------------
@@ -202,7 +226,7 @@ exports.getInvoices = async (req, res) => {
   const { type } = req.query;
 
   try {
-    const whereClause = { companyId };
+    const whereClause = { companyId, deletedAt: null };
     if (type) {
       whereClause.type = type;
     }

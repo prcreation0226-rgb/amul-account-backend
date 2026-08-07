@@ -1,6 +1,45 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Get Average Purchase Price for a specific product
+exports.getAveragePurchasePrice = async (req, res) => {
+  const companyId = req.user.companyId;
+  const productId = parseInt(req.params.id, 10);
+  try {
+    const product = await prisma.product.findFirst({ where: { id: productId, companyId } });
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    const purchaseItems = await prisma.invoiceItem.findMany({
+      where: {
+        productId,
+        invoice: {
+          companyId,
+          type: 'PURCHASE'
+        }
+      }
+    });
+
+    let totalQty = 0;
+    let totalValue = 0;
+
+    purchaseItems.forEach(item => {
+      const qty = (item.quantity || 0) + (item.freeQty || 0);
+      totalQty += qty;
+      totalValue += (qty * (item.price || 0));
+    });
+
+    let averagePrice = product.purchasePrice || product.price || 0;
+    if (totalQty > 0) {
+      averagePrice = totalValue / totalQty;
+    }
+
+    res.status(200).json({ success: true, averagePrice });
+  } catch (error) {
+    console.error('Error fetching average purchase price:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // Get all products for the tenant
 exports.getProducts = async (req, res) => {
   const companyId = req.user.companyId;
@@ -58,8 +97,7 @@ exports.getProducts = async (req, res) => {
 
     res.status(200).json({ success: true, data: enrichedProducts, meta: { total, page, limit } });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('ERROR:', error); res.status(500).json({ success: false, message: error.message, stack: error.stack });
   }
 };
 
@@ -214,26 +252,26 @@ exports.updateProduct = async (req, res) => {
         ...(brand !== undefined && { brand }),
         ...(colorVariant !== undefined && { colorVariant }),
         ...(status && { status }),
-        ...(price !== undefined && { price: parseFloat(price) }),
-        ...(mrp !== undefined && { mrp: parseFloat(mrp) }),
-        ...(stock !== undefined && { stock: parseInt(stock, 10) }),
-        ...(tax !== undefined && { tax: parseFloat(tax) }),
+        ...(price !== undefined && { price: parseFloat(price) || 0 }),
+        ...(mrp !== undefined && { mrp: parseFloat(mrp) || 0 }),
+        ...(stock !== undefined && { stock: parseInt(stock, 10) || 0 }),
+        ...(tax !== undefined && { tax: parseFloat(tax) || 0 }),
         ...(hsnCode !== undefined && { hsnCode }),
-        ...(purchasePrice !== undefined && { purchasePrice: parseFloat(purchasePrice) }),
-        ...(wholesalePrice !== undefined && { wholesalePrice: parseFloat(wholesalePrice) }),
-        ...(creditSalePrice !== undefined && { creditSalePrice: parseFloat(creditSalePrice) }),
+        ...(purchasePrice !== undefined && { purchasePrice: parseFloat(purchasePrice) || 0 }),
+        ...(wholesalePrice !== undefined && { wholesalePrice: parseFloat(wholesalePrice) || 0 }),
+        ...(creditSalePrice !== undefined && { creditSalePrice: parseFloat(creditSalePrice) || 0 }),
         ...(baseUnit !== undefined && { baseUnit }),
         ...(purchaseUnit !== undefined && { purchaseUnit }),
         ...(salesUnit !== undefined && { salesUnit }),
-        ...(lowStockAlert !== undefined && { lowStockAlert: parseInt(lowStockAlert, 10) }),
-        ...(reorderLevel !== undefined && { reorderLevel: parseInt(reorderLevel, 10) }),
+        ...(lowStockAlert !== undefined && { lowStockAlert: parseInt(lowStockAlert, 10) || 0 }),
+        ...(reorderLevel !== undefined && { reorderLevel: parseInt(reorderLevel, 10) || 0 }),
         ...(enableBatch !== undefined && { enableBatch: Boolean(enableBatch) }),
         ...(enableExpiry !== undefined && { enableExpiry: Boolean(enableExpiry) }),
         ...(enableImei !== undefined && { enableImei: Boolean(enableImei) }),
         ...(hasBom !== undefined && { hasBom: Boolean(hasBom) }),
         ...(qtySlabs !== undefined && { qtySlabs }),
-        ...(openingStockRate !== undefined && { openingStockRate: parseFloat(openingStockRate) }),
-        ...(secOpeningQty !== undefined && { secOpeningQty: parseFloat(secOpeningQty) }),
+        ...(openingStockRate !== undefined && { openingStockRate: parseFloat(openingStockRate) || 0 }),
+        ...(secOpeningQty !== undefined && { secOpeningQty: parseFloat(secOpeningQty) || 0 }),
         ...(asOfDate !== undefined && { asOfDate }),
         ...(warehouse !== undefined && { warehouse }),
         ...(bomName !== undefined && { bomName }),
@@ -242,7 +280,7 @@ exports.updateProduct = async (req, res) => {
         ...(syncOnline !== undefined && { syncOnline: Boolean(syncOnline) }),
         ...(onlineProductName !== undefined && { onlineProductName }),
         ...(onlineProductDesc !== undefined && { onlineProductDesc }),
-        ...(onlineSalePrice !== undefined && { onlineSalePrice: parseFloat(onlineSalePrice) }),
+        ...(onlineSalePrice !== undefined && { onlineSalePrice: parseFloat(onlineSalePrice) || 0 }),
         ...(ecommerceCategory !== undefined && { ecommerceCategory }),
         ...(productImage !== undefined && { productImage }),
         ...(commissionType !== undefined && { commissionType }),
@@ -311,8 +349,7 @@ exports.updateProduct = async (req, res) => {
 
     res.status(200).json({ success: true, data: product });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('ERROR:', error); res.status(500).json({ success: false, message: error.message, stack: error.stack });
   }
 };
 
@@ -349,8 +386,7 @@ exports.deleteProduct = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Product deleted' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('ERROR:', error); res.status(500).json({ success: false, message: error.message, stack: error.stack });
   }
 };
 
@@ -1008,4 +1044,4 @@ exports.getItemQuantityReport = async (req, res) => {
     console.error('Error fetching item quantity report:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
-};
+};

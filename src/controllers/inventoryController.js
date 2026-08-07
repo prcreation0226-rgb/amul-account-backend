@@ -130,6 +130,52 @@ exports.createTransaction = async (req, res) => {
         }
       }
 
+      // 5. Update Bank Balances from paymentDetails
+      if (req.body.paymentDetails && req.body.paymentDetails.length > 0) {
+        for (const pd of req.body.paymentDetails) {
+          const amt = parseFloat(pd.amount) || 0;
+          const bId = parseInt(pd.bankId, 10);
+          if (amt > 0 && bId && bId !== 9999) {
+            let isOutflow = false;
+            if (['PURCHASE', 'SALES_RETURN', 'PURCHASE_ORDER'].includes(type.toUpperCase())) {
+              isOutflow = true; // Money goes out of our bank
+            } else if (['SALES', 'PURCHASE_RETURN', 'SALES_ORDER', 'QUOTATION'].includes(type.toUpperCase())) {
+              isOutflow = false; // Money comes into our bank
+            }
+
+            if (isOutflow) {
+              await tx.bankTransaction.create({
+                data: {
+                  date: invoice.date,
+                  fromBankId: bId,
+                  amount: amt,
+                  remark: `${type.toUpperCase()} Payment - ${invoice.invoiceNo}`,
+                  companyId
+                }
+              });
+              await tx.bank.update({
+                where: { id: bId },
+                data: { balance: { decrement: amt } }
+              });
+            } else {
+              await tx.bankTransaction.create({
+                data: {
+                  date: invoice.date,
+                  toBankId: bId,
+                  amount: amt,
+                  remark: `${type.toUpperCase()} Receipt - ${invoice.invoiceNo}`,
+                  companyId
+                }
+              });
+              await tx.bank.update({
+                where: { id: bId },
+                data: { balance: { increment: amt } }
+              });
+            }
+          }
+        }
+      }
+
       return invoice;
     });
 
@@ -153,7 +199,8 @@ exports.getTransactions = async (req, res) => {
   try {
     const whereClause = { 
       companyId,
-      type: type.toUpperCase()
+      type: type.toUpperCase(),
+      deletedAt: null
     };
 
     if (startDate && endDate) {
@@ -196,7 +243,8 @@ exports.getTransactionById = async (req, res) => {
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: parseInt(id, 10),
-        companyId
+        companyId,
+        deletedAt: null
       },
       include: {
         customer: true,
@@ -223,11 +271,14 @@ exports.deleteTransaction = async (req, res) => {
   const companyId = req.user.companyId;
 
   try {
-    // Prisma will cascade delete InvoiceItems automatically
-    await prisma.invoice.delete({
+    // Soft delete the invoice so it goes to the recycle bin
+    await prisma.invoice.update({
       where: {
         id: parseInt(id, 10),
         companyId // ensure they only delete their own invoice
+      },
+      data: {
+        deletedAt: new Date()
       }
     });
 

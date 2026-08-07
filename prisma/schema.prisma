@@ -1113,7 +1113,6 @@ model BarcodeTemplate {
 
   // Barcode Toggles
   grnNumber          Boolean  @default(false)
-  zeroPrice          Boolean  @default(false)
   showBrand          Boolean  @default(false)
   showMRP            Boolean  @default(true)
   showAdditionalInfo Boolean  @default(false)
@@ -1123,7 +1122,6 @@ model BarcodeTemplate {
   crossMRP           Boolean  @default(false)
   showBorder         Boolean  @default(true)
   showCategory       Boolean  @default(false)
-  showAutoQuantity   Boolean  @default(false)
   showLocation       Boolean  @default(false)
   showUnit           Boolean  @default(true)
   showMultiLine      Boolean  @default(false)
@@ -1131,6 +1129,10 @@ model BarcodeTemplate {
   showHeading        Boolean  @default(true)
   hideBarcode        Boolean  @default(false)
   showDiscount       Boolean  @default(false)
+  showSize           Boolean  @default(false)
+  showColor          Boolean  @default(false)
+  showImei           Boolean  @default(false)
+  showBatchNo        Boolean  @default(false)
 
   // Fonts and Other Settings
   barcodeHeading     String?  @default("")
