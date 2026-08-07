@@ -272,7 +272,7 @@ exports.deleteTransaction = async (req, res) => {
 
   try {
     // Soft delete the invoice so it goes to the recycle bin
-    await prisma.invoice.update({
+    await prisma.invoice.updateMany({
       where: {
         id: parseInt(id, 10),
         companyId // ensure they only delete their own invoice
@@ -300,7 +300,7 @@ exports.updateTransactionStatus = async (req, res) => {
   }
 
   try {
-    const updatedInvoice = await prisma.invoice.update({
+    const updatedInvoice = await prisma.invoice.updateMany({
       where: {
         id: parseInt(id, 10),
         companyId

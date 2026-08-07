@@ -163,6 +163,7 @@ exports.getDayBookSummary = async (req, res) => {
       const invoices = await prisma.invoice.findMany({
         where: {
           companyId,
+          deletedAt: null,
           ...dateFilter,
           ...(voucherType && { type: voucherType })
         },
