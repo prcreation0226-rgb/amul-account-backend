@@ -208,3 +208,37 @@ exports.addExpenseTransaction = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+
+// Delete expense transaction
+exports.deleteExpenseTransaction = async (req, res) => {
+  const companyId = req.user.companyId;
+  const transactionId = parseInt(req.params.transactionId, 10);
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Find the transaction
+      const transaction = await tx.expenseTransaction.findFirstOrThrow({
+        where: { id: transactionId, companyId }
+      });
+
+      // Update expense balance by reverting the transaction
+      const balanceChange = transaction.paidAmount + transaction.discount - transaction.expenseAmount;
+      await tx.expense.update({
+        where: { id: transaction.expenseId },
+        data: { balance: { increment: balanceChange } }
+      });
+
+      // Delete the transaction
+      await tx.expenseTransaction.delete({
+        where: { id: transactionId }
+      });
+
+      return transaction;
+    });
+
+    res.status(200).json({ success: true, message: 'Transaction deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting expense transaction:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};

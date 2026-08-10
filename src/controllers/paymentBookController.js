@@ -208,3 +208,37 @@ exports.addPaymentBookTransaction = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+
+// Delete payment book transaction
+exports.deletePaymentBookTransaction = async (req, res) => {
+  const companyId = req.user.companyId;
+  const transactionId = parseInt(req.params.transactionId, 10);
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Find the transaction
+      const transaction = await tx.paymentBookTransaction.findFirstOrThrow({
+        where: { id: transactionId, companyId }
+      });
+
+      // Revert the balance change on the payment book
+      const balanceChange = transaction.paymentOut + transaction.discount - transaction.paymentIn;
+      await tx.paymentBook.update({
+        where: { id: transaction.paymentBookId },
+        data: { balance: { increment: balanceChange } }
+      });
+
+      // Delete the transaction
+      await tx.paymentBookTransaction.delete({
+        where: { id: transactionId }
+      });
+
+      return transaction;
+    });
+
+    res.status(200).json({ success: true, message: 'Transaction deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting payment book transaction:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};

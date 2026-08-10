@@ -162,19 +162,44 @@ exports.getMetrics = async (req, res) => {
 
     const remindersCount = followupsCount + dueInvoicesCount;
 
-    const todayCashSales = await prisma.invoice.aggregate({
-      _sum: { totalAmount: true },
-      where: { companyId, type: 'SALES', paymentMode: 'Cash', deletedAt: null, date: { gte: today, lt: tomorrow } }
-    });
-    const todayCashPurchases = await prisma.invoice.aggregate({
-      _sum: { totalAmount: true },
-      where: { companyId, type: 'PURCHASE', paymentMode: 'Cash', deletedAt: null, date: { gte: today, lt: tomorrow } }
-    });
-    const cashIn = todayCashSales._sum.totalAmount || 0;
-    const cashOut = todayCashPurchases._sum.totalAmount || 0;
-    const txnsCount = await prisma.invoice.count({
+    // --- Day Book Summary Data ---
+    // Cash In = Sales & Sales Return (paymentIn) + Receipts (paymentIn)
+    // Cash Out = Purchase & Purchase Return (paymentOut) + Payments (paymentOut) + Expenses (paidAmount)
+    let cashIn = 0;
+    let cashOut = 0;
+    
+    const todaysInvoices = await prisma.invoice.findMany({
       where: { companyId, deletedAt: null, date: { gte: today, lt: tomorrow } }
     });
+    
+    todaysInvoices.forEach(inv => {
+      if (inv.type === 'SALES' || inv.type === 'PURCHASE_RETURN') {
+        if (inv.paymentMode && inv.paymentMode.toLowerCase() === 'cash') {
+           cashIn += inv.totalAmount;
+        }
+      } else if (inv.type === 'PURCHASE' || inv.type === 'SALES_RETURN') {
+        cashOut += inv.totalAmount;
+      }
+    });
+
+    const todaysPayments = await prisma.paymentBookTransaction.findMany({
+      where: { companyId, date: { gte: today, lt: tomorrow } }
+    });
+
+    todaysPayments.forEach(pay => {
+      cashIn += (pay.paymentIn || 0);
+      cashOut += (pay.paymentOut || 0);
+    });
+
+    const todaysExpenses = await prisma.expenseTransaction.findMany({
+      where: { companyId, date: { gte: today, lt: tomorrow } }
+    });
+
+    todaysExpenses.forEach(exp => {
+      cashOut += (exp.paidAmount || 0);
+    });
+
+    const txnsCount = todaysInvoices.length + todaysPayments.length + todaysExpenses.length;
 
     const recycleBinCount = await prisma.invoice.count({
       where: { companyId, deletedAt: { not: null } }
