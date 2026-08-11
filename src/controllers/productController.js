@@ -9,31 +9,95 @@ exports.getAveragePurchasePrice = async (req, res) => {
     const product = await prisma.product.findFirst({ where: { id: productId, companyId } });
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 
-    const purchaseItems = await prisma.invoiceItem.findMany({
+    const allInvoices = await prisma.invoiceItem.findMany({
       where: {
         productId,
-        invoice: {
-          companyId,
-          type: 'PURCHASE'
+        invoice: { companyId }
+      },
+      include: { invoice: true },
+      orderBy: [
+        { invoice: { date: 'desc' } },
+        { id: 'desc' }
+      ]
+    });
+
+    let totalPurchaseQty = 0;
+    let totalSaleQty = 0;
+    let totalPurchaseValue = 0;
+
+    const purchaseItems = [];
+
+    allInvoices.forEach(item => {
+      const qty = (item.quantity || 0) + (item.freeQty || 0);
+      const type = item.invoice.type;
+      if (type === 'PURCHASE' || type === 'PURCHASE_RETURN') { // usually purchase return is negative qty or separate
+        if (type === 'PURCHASE') {
+          totalPurchaseQty += qty;
+          totalPurchaseValue += item.amount || (qty * (item.price || 0));
+          purchaseItems.push(item);
+        }
+      } else if (type === 'SALE' || type === 'SALE_RETURN' || type === 'SALES') {
+        if (type === 'SALE' || type === 'SALES') {
+          totalSaleQty += qty;
         }
       }
     });
 
-    let totalQty = 0;
-    let totalValue = 0;
+    // Calculate Price-wise Stock (FIFO)
+    const priceWiseStock = [];
 
-    purchaseItems.forEach(item => {
+    for (const item of purchaseItems) {
       const qty = (item.quantity || 0) + (item.freeQty || 0);
-      totalQty += qty;
-      totalValue += (qty * (item.price || 0));
-    });
-
-    let averagePrice = product.purchasePrice || product.price || 0;
-    if (totalQty > 0) {
-      averagePrice = totalValue / totalQty;
+      if (qty === 0) continue;
+      
+      const trueUnitPrice = item.amount ? (item.amount / qty) : (item.price || 0);
+      
+      priceWiseStock.push({
+        qty: qty,
+        price: trueUnitPrice,
+        amount: qty * trueUnitPrice
+      });
+    }
+    
+    let fallbackAvgPrice = product.purchasePrice || product.price || 0;
+    if (totalPurchaseQty > 0) {
+      fallbackAvgPrice = totalPurchaseValue / totalPurchaseQty;
     }
 
-    res.status(200).json({ success: true, averagePrice });
+    // Calculate actual Average Price of remaining stock
+    let averagePrice = fallbackAvgPrice;
+    const totalRemainingQty = priceWiseStock.reduce((acc, curr) => acc + curr.qty, 0);
+    const totalRemainingValue = priceWiseStock.reduce((acc, curr) => acc + curr.amount, 0);
+    if (totalRemainingQty > 0) {
+      averagePrice = totalRemainingValue / totalRemainingQty;
+    }
+
+    // Calculate Average Sale Price
+    let totalSaleValue = 0;
+    let actualSaleQty = 0;
+    allInvoices.forEach(item => {
+      const qty = (item.quantity || 0) + (item.freeQty || 0);
+      const type = item.invoice.type;
+      if (type === 'SALE' || type === 'SALES') {
+        actualSaleQty += qty;
+        totalSaleValue += item.amount || (qty * (item.price || 0));
+      }
+    });
+
+    let averageSalePrice = product.price || 0;
+    if (actualSaleQty > 0) {
+      averageSalePrice = totalSaleValue / actualSaleQty;
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      averagePrice, 
+      totalAveragePrice: fallbackAvgPrice,
+      averageSalePrice,
+      totalPurchaseQty,
+      totalSaleQty,
+      priceWiseStock 
+    });
   } catch (error) {
     console.error('Error fetching average purchase price:', error);
     res.status(500).json({ success: false, message: 'Server error' });

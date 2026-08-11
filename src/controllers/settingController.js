@@ -64,6 +64,7 @@ exports.updateSettings = async (req, res) => {
     delete updates.manageVariants; // Not in Prisma schema
     delete updates.showSKU; // Not in Prisma schema
     delete updates.showVariantsImei; // Not in Prisma schema
+    delete updates.quantityCalculator; // Not in Prisma schema
 
     const updatedSettings = await prisma.companySetting.upsert({
       where: { companyId },

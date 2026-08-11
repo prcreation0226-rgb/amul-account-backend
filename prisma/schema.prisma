@@ -315,6 +315,7 @@ model InvoiceItem {
   cgst      Float    @default(0)
   sgst      Float    @default(0)
   igst      Float    @default(0)
+  isGstInclusive Boolean @default(false)
 
 @@map("invoiceitem")
 }
