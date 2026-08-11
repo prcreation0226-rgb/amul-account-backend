@@ -66,6 +66,8 @@ exports.createTransaction = async (req, res) => {
               productId: item.productId,
               quantity: item.quantity,
               freeQty: item.freeQty,
+              primaryOpeningQty: item.primaryOpeningQty,
+              secOpeningQty: item.secOpeningQty,
               price: item.price,
               discount1: item.discount1,
               discount2: item.discount2,

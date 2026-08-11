@@ -2,12 +2,24 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const inv = await prisma.invoice.findFirst({
-    where: { invoiceNo: { startsWith: 'POS' } },
-    orderBy: { createdAt: 'desc' },
-    include: { items: true }
+  const user = await prisma.user.findUnique({
+    where: { id: 2 }, // Admin of Company 1
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      companyId: true,
+      createdAt: true,
+      company: {
+        select: {
+          expireDate: true
+        }
+      }
+    }
   });
-  console.log(JSON.stringify(inv, null, 2));
+  console.log(JSON.stringify(user, null, 2));
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

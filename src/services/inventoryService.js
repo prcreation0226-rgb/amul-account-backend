@@ -16,24 +16,34 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
   }
 
   for (const item of items) {
-    const qty = parseInt(item.quantity) + parseInt(item.freeQty || 0);
+    let pQty = 0;
+    let sQty = 0;
+
+    if (item.primaryOpeningQty !== undefined || item.secOpeningQty !== undefined) {
+       pQty = (parseFloat(item.primaryOpeningQty) || 0) + parseInt(item.freeQty || 0);
+       sQty = (parseFloat(item.secOpeningQty) || 0);
+    } else {
+       pQty = parseInt(item.quantity) + parseInt(item.freeQty || 0);
+    }
 
     // Determine the operation based on transaction type
     let stockChange = 0;
+    let secStockChange = 0;
 
     switch (transactionType) {
       case 'PURCHASE':
       case 'SALES_RETURN':
-        stockChange = qty; // Increase stock
+        stockChange = pQty; // Increase stock
+        secStockChange = sQty;
         break;
       case 'SALES':
       case 'PURCHASE_RETURN':
-        stockChange = -qty; // Decrease stock
+        stockChange = -pQty; // Decrease stock
+        secStockChange = -sQty;
         break;
       case 'ADJUSTMENT':
-        // For simple adjustments, we will assume it's absolute replacement or delta.
-        // If we treat it as delta, it can be positive or negative. For this basic setup:
-        stockChange = qty; 
+        stockChange = pQty; 
+        secStockChange = sQty;
         break;
       default:
         break;
@@ -47,10 +57,13 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
     const companyId = productRecord.companyId;
 
     // Apply standard stock change
-    if (stockChange !== 0 && transactionType !== 'STOCK_TRANSFER') {
+    if ((stockChange !== 0 || secStockChange !== 0) && transactionType !== 'STOCK_TRANSFER') {
       const product = await tx.product.update({
         where: { id: item.productId },
-        data: { stock: { increment: stockChange } }
+        data: { 
+          stock: { increment: Math.round(stockChange) },
+          secOpeningQty: { increment: secStockChange }
+        }
       });
 
       // Low stock validation check
@@ -73,11 +86,11 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
           create: {
             productId: item.productId,
             warehouseId: targetWhId,
-            stock: stockChange,
+            stock: Math.round(stockChange),
             companyId
           },
           update: {
-            stock: { increment: stockChange }
+            stock: { increment: Math.round(stockChange) }
           }
         });
       }
@@ -94,11 +107,11 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
           create: {
             productId: item.productId,
             warehouseId: srcWhId,
-            stock: -qty,
+            stock: -Math.round(pQty),
             companyId
           },
           update: {
-            stock: { decrement: qty }
+            stock: { decrement: Math.round(pQty) }
           }
         });
       }
@@ -109,11 +122,11 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
           create: {
             productId: item.productId,
             warehouseId: destWhId,
-            stock: qty,
+            stock: Math.round(pQty),
             companyId
           },
           update: {
-            stock: { increment: qty }
+            stock: { increment: Math.round(pQty) }
           }
         });
       }

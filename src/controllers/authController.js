@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 exports.register = async (req, res) => {
-  const { name, email, password, companyName } = req.body;
+  const { name, contactNumber, email, password, companyName } = req.body;
 
   try {
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -21,6 +21,7 @@ exports.register = async (req, res) => {
           name: companyName || 'My Company',
           ownerName: name,
           ownerEmail: email,
+          phone: contactNumber,
           status: 'ACTIVE'
         }
       });
@@ -177,10 +178,14 @@ exports.getMe = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        phone: true,
         role: true,
         companyId: true,
-        createdAt: true
+        createdAt: true,
+        company: {
+          select: {
+            expireDate: true
+          }
+        }
       }
     });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
@@ -238,6 +243,55 @@ exports.changePassword = async (req, res) => {
     res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     console.error('changePassword error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    let users = [];
+
+    if (userRole === 'SUPERADMIN') {
+      // Superadmin sees all users
+      users = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          companyId: true,
+          createdAt: true,
+          company: {
+            select: { name: true }
+          }
+        },
+        orderBy: { id: 'asc' }
+      });
+    } else if (userRole === 'COMPANY_ADMIN') {
+      // Company Admin sees users of their own company
+      users = await prisma.user.findMany({
+        where: { companyId: req.user.companyId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          companyId: true,
+          createdAt: true,
+          company: {
+            select: { name: true }
+          }
+        },
+        orderBy: { id: 'asc' }
+      });
+    } else {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

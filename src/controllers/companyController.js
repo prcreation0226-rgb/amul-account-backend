@@ -106,11 +106,30 @@ exports.updateCompany = async (req, res) => {
         include: { plan: true }
       });
 
+      // Update the user's name and email as well if they match the company
+      // Since we don't know the old email from just req.body, we should ideally update the primary COMPANY_ADMIN
+      // Or we update the user that currently holds the role COMPANY_ADMIN for this company
+      
+      const updateData = { 
+        name: ownerName,
+        email: ownerEmail
+      };
+      
       if (password) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await tx.user.updateMany({
-          where: { email: ownerEmail, companyId: comp.id },
-          data: { password: hashedPassword }
+        updateData.password = await bcrypt.hash(password, 10);
+      }
+
+      // Find the primary company admin (the first one created or simply update all COMPANY_ADMINs for this company if there's only supposed to be one main one)
+      // Actually, just updating the first COMPANY_ADMIN is safer.
+      const companyAdmins = await tx.user.findMany({
+        where: { companyId: comp.id, role: 'COMPANY_ADMIN' },
+        orderBy: { id: 'asc' }
+      });
+      
+      if (companyAdmins.length > 0) {
+        await tx.user.update({
+          where: { id: companyAdmins[0].id },
+          data: updateData
         });
       }
 

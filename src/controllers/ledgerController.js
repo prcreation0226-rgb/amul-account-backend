@@ -192,6 +192,31 @@ exports.addPayment = async (req, res) => {
         }
       });
 
+      // Integrate with CashBook (Rojmel) if payment mode is Cash
+      if ((paymentMode || 'Cash') === 'Cash') {
+         const isSupplier = updatedCustomer.type === 'SUPPLIER';
+         let particularText = '';
+         if (isSupplier) {
+           particularText = (paymentType === 'IN') ? 'Supplier Refund Received' : 'Supplier Payment Made';
+         } else {
+           particularText = (paymentType === 'IN') ? 'Customer Payment Received' : 'Customer Refund Paid';
+         }
+
+         await tx.cashBook.create({
+           data: {
+             date: date ? new Date(date) : new Date(),
+             voucherNo: `PAY-${payment.id}`,
+             type: paymentType === 'IN' ? 'Income' : 'Expense',
+             particular: particularText,
+             accountName: updatedCustomer.name,
+             paymentType: 'Cash',
+             cashIn: paymentType === 'IN' ? parsedAmount : 0,
+             cashOut: paymentType === 'OUT' ? parsedAmount : 0,
+             companyId
+           }
+         });
+      }
+
       return { payment, newBalance: updatedCustomer.balance };
     });
 
@@ -230,6 +255,13 @@ exports.deletePayment = async (req, res) => {
       await tx.customerPayment.delete({
         where: { id: payment.id }
       });
+
+      // Also delete the CashBook entry if it exists
+      if ((payment.paymentMode || 'Cash') === 'Cash') {
+         await tx.cashBook.deleteMany({
+           where: { voucherNo: `PAY-${payment.id}`, companyId }
+         });
+      }
 
       // Update customer balance (Payment IN was negative, so we subtract the adjustment, meaning we add it back)
       // Payment OUT was positive, so we subtract the adjustment
