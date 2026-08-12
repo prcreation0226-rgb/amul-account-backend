@@ -138,6 +138,13 @@ exports.createTransaction = async (req, res) => {
           const amt = parseFloat(pd.amount) || 0;
           const bId = parseInt(pd.bankId, 10);
           if (amt > 0 && bId && bId !== 9999) {
+            // Verify bank exists to avoid foreign key constraint error
+            const bankExists = await tx.bank.findFirst({ where: { id: bId, companyId } });
+            if (!bankExists) {
+              console.warn(`Bank ID ${bId} not found, skipping bank transaction.`);
+              continue;
+            }
+
             let isOutflow = false;
             if (['PURCHASE', 'SALES_RETURN', 'PURCHASE_ORDER'].includes(type.toUpperCase())) {
               isOutflow = true; // Money goes out of our bank
