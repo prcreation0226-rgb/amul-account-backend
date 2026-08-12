@@ -42,7 +42,7 @@ exports.createBarcodeSetting = async (req, res) => {
 exports.updateBarcodeSetting = async (req, res) => {
   const companyId = req.user.companyId;
   const { id } = req.params;
-  const { pageType, ...data } = req.body;
+  const { pageType, zeroPrice, showAutoQuantity, ...data } = req.body;
   try {
     const template = await prisma.barcodeTemplate.update({
       where: { id: parseInt(id, 10), companyId },
