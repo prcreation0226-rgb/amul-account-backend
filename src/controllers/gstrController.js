@@ -36,7 +36,7 @@ exports.getGstr1Summary = async (req, res) => {
 
     // Initialize summary object
     const summary = {
-      b2b: { count: 0, taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, taxAmt: 0, invoiceAmt: 0 },
+      b2b: { count: 0, taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, taxAmt: 0, invoiceAmt: 0, invoices: [] },
       b2cLarge: { count: 0, taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, taxAmt: 0, invoiceAmt: 0 },
       b2cSmall: { count: 0, taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, taxAmt: 0, invoiceAmt: 0 },
       cdnr: { count: 0, taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, taxAmt: 0, invoiceAmt: 0 }, // Credit/Debit Notes Registered
@@ -96,6 +96,39 @@ exports.getGstr1Summary = async (req, res) => {
         summary[category].cess += (cess * m);
         summary[category].taxAmt += (taxAmt * m);
         summary[category].invoiceAmt += (invoiceAmt * m);
+
+        if (category === 'b2b') {
+          const rateMap = {};
+          if (inv.items && inv.items.length > 0) {
+            inv.items.forEach(item => {
+              const rate = item.gstRate || 0;
+              if (!rateMap[rate]) {
+                rateMap[rate] = { taxable: 0, cess: 0 };
+              }
+              rateMap[rate].taxable += (item.amount || 0) * m;
+            });
+          } else {
+            rateMap[0] = { taxable: taxable * m, cess: cess * m };
+          }
+          
+          Object.keys(rateMap).forEach(rate => {
+            summary.b2b.invoices.push({
+              gstin: inv.customer ? inv.customer.gstin : '',
+              receiverName: inv.customer ? inv.customer.name : '',
+              invoiceNo: inv.invoiceNo,
+              invoiceDate: inv.date,
+              invoiceValue: invoiceAmt * m,
+              placeOfSupply: inv.customer ? (inv.customer.state || '') : '',
+              reverseCharge: 'N',
+              applicablePercent: '',
+              invoiceType: 'Regular B2B',
+              ecommerceGstin: '',
+              gstRate: parseFloat(rate),
+              taxableValue: rateMap[rate].taxable,
+              cessAmount: rateMap[rate].cess
+            });
+          });
+        }
       }
 
       // Add to total
