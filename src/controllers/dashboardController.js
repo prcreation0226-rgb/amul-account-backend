@@ -195,8 +195,10 @@ exports.getMetrics = async (req, res) => {
       where: { companyId, date: { gte: today, lt: tomorrow } }
     });
 
+    let todaysExpensesTotal = 0;
     todaysExpenses.forEach(exp => {
       cashOut += (exp.paidAmount || 0);
+      todaysExpensesTotal += (exp.expenseAmount || 0);
     });
 
     const txnsCount = todaysInvoices.length + todaysPayments.length + todaysExpenses.length;
@@ -214,7 +216,7 @@ exports.getMetrics = async (req, res) => {
         todaysSale,
         todayPurchase,
         currentStockStatus,
-        todaysExpenses: 0,
+        todaysExpenses: todaysExpensesTotal,
         customerOutstanding,
         companyOutstanding,
         allAccountsBalance,
