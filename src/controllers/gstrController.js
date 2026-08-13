@@ -8,6 +8,7 @@ exports.getGstr1Summary = async (req, res) => {
   try {
     const whereClause = {
       companyId,
+      deletedAt: null,
       type: {
         in: ['SALES', 'SALES_RETURN']
       }
