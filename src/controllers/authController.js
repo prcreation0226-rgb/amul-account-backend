@@ -299,7 +299,7 @@ exports.getAllUsers = async (req, res) => {
 // POST /auth/register-sub-user
 exports.registerSubUser = async (req, res) => {
   try {
-    const { name, password, role, allowFirms, stores, books } = req.body;
+    const { name, password, role, allowFirms, stores, books, customPermissions } = req.body;
     
     // Only SUPERADMIN or COMPANY_ADMIN should be able to create sub-users
     if (req.user.role !== 'SUPERADMIN' && req.user.role !== 'COMPANY_ADMIN') {
@@ -314,7 +314,8 @@ exports.registerSubUser = async (req, res) => {
     const notificationPermissions = {
       allowFirms: allowFirms || [],
       stores: stores || [],
-      books: books || []
+      books: books || [],
+      customPermissions: customPermissions || null
     };
 
     const newUser = await prisma.user.create({
