@@ -438,6 +438,7 @@ model ExpenseTransaction {
   paidAmount    Float    @default(0)
   discount      Float    @default(0)
   remark        String?
+  paymentMode   String   @default("Cash")
   expenseId     Int
   expense       Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   companyId     Int
@@ -470,6 +471,7 @@ model IncomeTransaction {
   paidAmount    Float    @default(0)
   discount      Float    @default(0)
   remark        String?
+  paymentMode   String   @default("Cash")
   incomeId      Int
   income        Income   @relation(fields: [incomeId], references: [id], onDelete: Cascade)
   companyId     Int
@@ -592,6 +594,7 @@ model EmployeeTransaction {
   type        String
   discount    Float    @default(0)
   remark      String?
+  paymentMode String   @default("Cash")
   balance     Float    @default(0)
   employeeId  Int
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -914,6 +917,7 @@ model PaymentBookTransaction {
   paymentOut     Float        @default(0)
   discount       Float        @default(0)
   remark         String?
+  paymentMode    String       @default("Cash")
   paymentBookId  Int
   paymentBook    PaymentBook  @relation(fields: [paymentBookId], references: [id], onDelete: Cascade)
   companyId      Int

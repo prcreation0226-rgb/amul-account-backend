@@ -172,7 +172,7 @@ exports.getPaymentBookTransactions = async (req, res) => {
 exports.addPaymentBookTransaction = async (req, res) => {
   const companyId = req.user.companyId;
   const paymentBookId = parseInt(req.params.id, 10);
-  const { date, paymentIn, paymentOut, discount, remark } = req.body;
+  const { date, paymentIn, paymentOut, discount, remark, paymentMode } = req.body;
 
   try {
     const parsedIn = parseFloat(paymentIn) || 0;
@@ -187,6 +187,7 @@ exports.addPaymentBookTransaction = async (req, res) => {
           paymentOut: parsedOut,
           discount: parsedDiscount,
           remark,
+          paymentMode: paymentMode || 'Cash',
           paymentBookId,
           companyId
         }
@@ -198,6 +199,15 @@ exports.addPaymentBookTransaction = async (req, res) => {
         where: { id: paymentBookId },
         data: { balance: { increment: balanceChange } }
       });
+
+      // Update Bank Balance via BankService
+      const { updateBankBalance } = require('../services/bankService');
+      if (parsedIn > 0) {
+          await updateBankBalance(companyId, paymentMode || 'Cash', parsedIn, 'IN', tx);
+      }
+      if (parsedOut > 0) {
+          await updateBankBalance(companyId, paymentMode || 'Cash', parsedOut, 'OUT', tx);
+      }
 
       return transaction;
     });

@@ -168,6 +168,46 @@ exports.getExpenseTransactions = async (req, res) => {
   }
 };
 
+// Get all expense transactions across all expense heads
+exports.getAllExpenseTransactions = async (req, res) => {
+  const companyId = req.user.companyId;
+
+  try {
+    const transactions = await prisma.expenseTransaction.findMany({
+      where: { companyId },
+      include: { expense: true },
+      orderBy: { date: 'asc' }
+    });
+
+    let entries = [];
+    let runningBalance = 0;
+
+    transactions.forEach(t => {
+      runningBalance += t.expenseAmount;
+      runningBalance -= t.paidAmount;
+      runningBalance -= t.discount;
+
+      entries.push({
+        id: t.id,
+        date: t.date,
+        expenseAmount: t.expenseAmount,
+        paidAmount: t.paidAmount,
+        discount: t.discount,
+        remark: t.remark ? `${t.expense?.name || ''} - ${t.remark}` : (t.expense?.name || '-'),
+        balance: runningBalance
+      });
+    });
+
+    res.status(200).json({
+      success: true,
+      data: entries
+    });
+  } catch (error) {
+    console.error('Error fetching all expense transactions:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 // Add expense transaction
 exports.addExpenseTransaction = async (req, res) => {
   const companyId = req.user.companyId;

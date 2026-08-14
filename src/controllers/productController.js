@@ -839,9 +839,6 @@ exports.getOrderList = async (req, res) => {
     const products = await prisma.product.findMany({
       where: {
         companyId,
-        lowStockAlert: {
-          gt: 0
-        }
       },
       select: {
         id: true,
@@ -855,12 +852,9 @@ exports.getOrderList = async (req, res) => {
     });
 
     const orderList = products
-      .filter(p => p.stock <= p.lowStockAlert)
+      .filter(p => p.stock <= p.reorderLevel)
       .map(p => {
-        let quantity = Math.max(p.reorderLevel - p.stock, 1);
-        if (p.reorderLevel <= 0) {
-          quantity = p.lowStockAlert > 0 ? p.lowStockAlert : 1;
-        }
+        const quantity = Math.max(p.reorderLevel - p.stock, 1);
         
         return {
           id: p.id,

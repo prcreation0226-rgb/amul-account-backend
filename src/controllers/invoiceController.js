@@ -144,66 +144,54 @@ exports.createInvoice = async (req, res) => {
         }
       });
 
-      // --- New Logic: Auto-deposit Sale into Bank Ledger ---
-      if (invoice.type === 'SALES' && invoice.totalAmount > 0) {
-        const paymentDetails = req.body.paymentDetails || [];
-        
-        if (paymentDetails.length > 0) {
-          for (const pd of paymentDetails) {
-            const amt = parseFloat(pd.amount) || 0;
-            const bId = parseInt(pd.bankId, 10);
-            if (amt > 0 && bId && bId !== 9999) {
-              // Verify bank exists to avoid foreign key constraint error
-              const bankExists = await tx.bank.findFirst({ where: { id: bId, companyId } });
-              if (!bankExists) {
-                console.warn(`Bank ID ${bId} not found, skipping bank transaction.`);
-                continue;
-              }
-
-              await tx.bankTransaction.create({
-                data: {
-                  date: invoice.date,
-                  toBankId: bId,
-                  amount: amt,
-                  remark: `${invoice.paymentMode} Sale - ${invoice.invoiceNo}`,
-                  companyId
+        // --- Auto-deposit Invoice Amount into Bank Ledger ---
+        if (invoice.totalAmount > 0 && invoice.paymentMode && invoice.paymentMode.toLowerCase() !== 'credit') {
+          const { updateBankBalance } = require('../services/bankService');
+          const paymentDetails = req.body.paymentDetails || [];
+          
+          let processedAmount = 0;
+          let paymentDetailsProvided = false;
+          
+          // Handle split payments if provided
+          if (Array.isArray(paymentDetails) && paymentDetails.length > 0) {
+            paymentDetailsProvided = true;
+            for (const pd of paymentDetails) {
+              const amt = parseFloat(pd.amount) || 0;
+              const bId = parseInt(pd.bankId, 10);
+              if (amt > 0 && bId && bId !== 9999) {
+                const bankExists = await tx.bank.findFirst({ where: { id: bId, companyId } });
+                if (bankExists) {
+                  let tType = 'IN';
+                  if (invoice.type === 'PURCHASE' || invoice.type === 'SALES_RETURN' || invoice.type === 'EXPENSE') tType = 'OUT';
+                  
+                  await tx.bankTransaction.create({
+                    data: {
+                      date: invoice.date,
+                      toBankId: tType === 'IN' ? bId : null,
+                      fromBankId: tType === 'OUT' ? bId : null,
+                      amount: amt,
+                      remark: `${invoice.paymentMode} ${invoice.type} - ${invoice.invoiceNo}`,
+                      companyId
+                    }
+                  });
+                  await tx.bank.update({
+                    where: { id: bId },
+                    data: { balance: { increment: tType === 'IN' ? amt : -amt } }
+                  });
+                  processedAmount += amt;
                 }
-              });
-              await tx.bank.update({
-                where: { id: bId },
-                data: { balance: { increment: amt } }
-              });
+              }
             }
           }
-        } else {
-          const banks = await tx.bank.findMany({ where: { companyId } });
-          const pModeLower = invoice.paymentMode.toLowerCase();
-          let targetBank;
-          if (pModeLower === 'cash') {
-            targetBank = banks.find(b => (b.type || '').toLowerCase().includes('cash') || (b.name || '').toLowerCase().includes('cash'));
-          } else {
-            targetBank = banks.find(b => (b.name || '').toLowerCase().includes(pModeLower) || pModeLower.includes((b.name || '').toLowerCase()));
-          }
-          if (!targetBank && banks.length > 0) targetBank = banks[0];
           
-          if (targetBank) {
-            await tx.bankTransaction.create({
-              data: {
-                date: invoice.date,
-                toBankId: targetBank.id,
-                amount: invoice.totalAmount,
-                remark: `${invoice.paymentMode} Sale - ${invoice.invoiceNo}`,
-                companyId
-              }
-            });
-            await tx.bank.update({
-              where: { id: targetBank.id },
-              data: { balance: { increment: invoice.totalAmount } }
-            });
+          // If no paymentDetails were provided, assume full payment in the primary paymentMode
+          if (!paymentDetailsProvided) {
+              let tType = 'IN';
+              if (invoice.type === 'PURCHASE' || invoice.type === 'SALES_RETURN' || invoice.type === 'EXPENSE') tType = 'OUT';
+              await updateBankBalance(companyId, invoice.paymentMode, invoice.totalAmount, tType, tx, `${invoice.paymentMode} ${invoice.type} - ${invoice.invoiceNo}`);
           }
         }
-      }
-      // -------------------------------------------------------------
+        // -------------------------------------------------------------
 
       await tx.auditLog.create({
         data: {

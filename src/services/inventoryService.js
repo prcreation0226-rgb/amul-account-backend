@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
  */
 const updateStock = async (items, transactionType, warehouseId, toWarehouseId, tx = prisma) => {
   // If the transaction doesn't affect stock, return early.
-  if (['PURCHASE_ORDER', 'QUOTATION', 'CHALLAN'].includes(transactionType)) {
+  if (['QUOTATION', 'CHALLAN'].includes(transactionType)) {
     return;
   }
 
@@ -32,11 +32,13 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
 
     switch (transactionType) {
       case 'PURCHASE':
+      case 'PURCHASE_ORDER':
       case 'SALES_RETURN':
         stockChange = pQty; // Increase stock
         secStockChange = sQty;
         break;
       case 'SALES':
+      case 'SALES_ORDER':
       case 'PURCHASE_RETURN':
         stockChange = -pQty; // Decrease stock
         secStockChange = -sQty;
@@ -51,18 +53,50 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
 
     const productRecord = await tx.product.findUnique({
       where: { id: item.productId },
-      select: { companyId: true }
+      select: { companyId: true, baseUnit: true, salesUnit: true, stock: true, secOpeningQty: true }
     });
     if (!productRecord) continue;
     const companyId = productRecord.companyId;
 
+    // Fetch conversion rate to normalize stock
+    let conversionRate = 1;
+    if (productRecord.baseUnit && productRecord.salesUnit) {
+      const conversion = await tx.unitConversion.findFirst({
+        where: {
+          companyId: companyId,
+          baseUnit: productRecord.baseUnit,
+          targetUnit: productRecord.salesUnit
+        }
+      });
+      if (conversion && conversion.baseQty > 0) {
+        conversionRate = conversion.targetQty / conversion.baseQty;
+      }
+    }
+
     // Apply standard stock change
     if ((stockChange !== 0 || secStockChange !== 0) && transactionType !== 'STOCK_TRANSFER') {
+      let newStock = productRecord.stock + Math.round(stockChange);
+      let newSecQty = (productRecord.secOpeningQty || 0) + secStockChange;
+
+      // Normalize quantities based on conversion rate
+      if (conversionRate > 1) {
+        if (newSecQty >= conversionRate) {
+          const extraBoxes = Math.floor(newSecQty / conversionRate);
+          newStock += extraBoxes;
+          newSecQty = newSecQty % conversionRate;
+        }
+        if (newSecQty < 0) {
+          const borrowedBoxes = Math.ceil(Math.abs(newSecQty) / conversionRate);
+          newStock -= borrowedBoxes;
+          newSecQty = newSecQty + (borrowedBoxes * conversionRate);
+        }
+      }
+
       const product = await tx.product.update({
         where: { id: item.productId },
         data: { 
-          stock: { increment: Math.round(stockChange) },
-          secOpeningQty: { increment: secStockChange }
+          stock: newStock,
+          secOpeningQty: newSecQty
         }
       });
 
@@ -86,11 +120,11 @@ const updateStock = async (items, transactionType, warehouseId, toWarehouseId, t
           create: {
             productId: item.productId,
             warehouseId: targetWhId,
-            stock: Math.round(stockChange),
+            stock: newStock,
             companyId
           },
           update: {
-            stock: { increment: Math.round(stockChange) }
+            stock: newStock
           }
         });
       }

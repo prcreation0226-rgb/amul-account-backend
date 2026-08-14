@@ -146,10 +146,17 @@ exports.getMetrics = async (req, res) => {
     let reorderCount = 0;
     let expiredCount = 0;
     const now = new Date();
-    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    now.setHours(0, 0, 0, 0);
     allProductsList.forEach(p => {
       if (p.stock <= p.reorderLevel) reorderCount++;
-      if (p.expiryMonth && p.expiryMonth < currentMonthStr) expiredCount++;
+      if (p.expiryMonth) {
+        const parts = p.expiryMonth.split('/');
+        if (parts.length === 3) {
+          const expDate = new Date(parts[2], parts[1] - 1, parts[0]);
+          expDate.setHours(0, 0, 0, 0);
+          if (expDate < now) expiredCount++;
+        }
+      }
     });
 
     const followupsCount = await prisma.followup.count({
@@ -198,7 +205,7 @@ exports.getMetrics = async (req, res) => {
     let todaysExpensesTotal = 0;
     todaysExpenses.forEach(exp => {
       cashOut += (exp.paidAmount || 0);
-      todaysExpensesTotal += (exp.expenseAmount || 0);
+      todaysExpensesTotal += (exp.paidAmount || 0);
     });
 
     const txnsCount = todaysInvoices.length + todaysPayments.length + todaysExpenses.length;
